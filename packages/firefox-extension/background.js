@@ -1,4 +1,4 @@
-const DEFAULT_HOST = "https://repolith.com";
+const DEFAULT_HOST = "https://repolith.my.id";
 
 browser.runtime.onInstalled.addListener(() => {
 	browser.storage.local.get(["enabled", "host"]).then((data) => {

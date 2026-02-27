@@ -140,7 +140,7 @@ export function ExtensionInstallDialog({ open, onOpenChange }: ExtensionInstallD
 				{/* Footer */}
 				<div className="border-t border-border px-5 py-3 flex items-center justify-between">
 					<p className="text-[10px] text-muted-foreground/30 font-mono">
-						Defaults to repolith.com
+						Defaults to repolith.my.id
 					</p>
 					<Link
 						href="/extension"

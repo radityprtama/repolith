@@ -7,7 +7,7 @@ const saveBtn = document.getElementById("save");
 chrome.storage.local.get(["enabled", "host"], (data) => {
 	const enabled = data.enabled !== false;
 	toggle.checked = enabled;
-	hostInput.value = data.host || "https://repolith.com";
+	hostInput.value = data.host || "https://repolith.my.id";
 	updateStatus(enabled);
 });
 

@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 	subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://repolith.com";
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://repolith.my.id";
 
 export const viewport: Viewport = {
 	themeColor: "#000000",
