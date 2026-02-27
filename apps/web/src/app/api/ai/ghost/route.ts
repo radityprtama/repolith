@@ -27,7 +27,7 @@ import {
 } from "@/lib/github";
 import Supermemory from "supermemory";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 // ─── Model Config ───────────────────────────────────────────────────────────
 // Central config for "auto" mode. Swap models here — no other changes needed.
