@@ -55,8 +55,18 @@ export async function getGeistMono(): Promise<ArrayBuffer> {
 export async function ogFonts() {
 	const [sans, mono] = await Promise.all([getGeistSans(), getGeistMono()]);
 	return [
-		{ name: "Geist Sans", data: sans, style: "normal" as const, weight: 400 as const },
-		{ name: "Geist Mono", data: mono, style: "normal" as const, weight: 400 as const },
+		{
+			name: "Geist Sans",
+			data: sans,
+			style: "normal" as const,
+			weight: 400 as const,
+		},
+		{
+			name: "Geist Mono",
+			data: mono,
+			style: "normal" as const,
+			weight: 400 as const,
+		},
 	];
 }
 
@@ -96,7 +106,7 @@ export function BrandWatermark() {
 				letterSpacing: "0.05em",
 			}}
 		>
-			BETTER-HUB.
+			Repolith.
 		</div>
 	);
 }
