@@ -5,7 +5,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/\\1/\\2/pull/\\3"
+				"regexSubstitution": "https://repolith.com/\\1/\\2/pull/\\3"
 			}
 		},
 		"condition": {
@@ -19,7 +19,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/\\1/\\2/commit/\\3"
+				"regexSubstitution": "https://repolith.com/\\1/\\2/commit/\\3"
 			}
 		},
 		"condition": {
@@ -33,7 +33,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/\\1/\\2/actions/\\3"
+				"regexSubstitution": "https://repolith.com/\\1/\\2/actions/\\3"
 			}
 		},
 		"condition": {
@@ -47,7 +47,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/\\1/\\2"
+				"regexSubstitution": "https://repolith.com/\\1/\\2"
 			}
 		},
 		"condition": {
@@ -61,7 +61,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/\\1/\\2/\\3"
+				"regexSubstitution": "https://repolith.com/\\1/\\2/\\3"
 			}
 		},
 		"condition": {
@@ -118,19 +118,13 @@
 		"id": 15,
 		"priority": 5,
 		"action": { "type": "allow" },
-		"condition": {
-			"urlFilter": "||github.com/login",
-			"resourceTypes": ["main_frame"]
-		}
+		"condition": { "urlFilter": "||github.com/login", "resourceTypes": ["main_frame"] }
 	},
 	{
 		"id": 16,
 		"priority": 5,
 		"action": { "type": "allow" },
-		"condition": {
-			"urlFilter": "||github.com/signup",
-			"resourceTypes": ["main_frame"]
-		}
+		"condition": { "urlFilter": "||github.com/signup", "resourceTypes": ["main_frame"] }
 	},
 	{
 		"id": 26,
@@ -199,10 +193,7 @@
 		"id": 21,
 		"priority": 5,
 		"action": { "type": "allow" },
-		"condition": {
-			"urlFilter": "||github.com/new",
-			"resourceTypes": ["main_frame"]
-		}
+		"condition": { "urlFilter": "||github.com/new", "resourceTypes": ["main_frame"] }
 	},
 	{
 		"id": 22,
@@ -217,10 +208,7 @@
 		"id": 23,
 		"priority": 5,
 		"action": { "type": "allow" },
-		"condition": {
-			"urlFilter": "||github.com/topics",
-			"resourceTypes": ["main_frame"]
-		}
+		"condition": { "urlFilter": "||github.com/topics", "resourceTypes": ["main_frame"] }
 	},
 	{
 		"id": 24,
@@ -237,7 +225,7 @@
 		"action": {
 			"type": "redirect",
 			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/notifications"
+				"regexSubstitution": "https://repolith.com/notifications"
 			}
 		},
 		"condition": {
@@ -250,9 +238,7 @@
 		"priority": 4,
 		"action": {
 			"type": "redirect",
-			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/trending"
-			}
+			"redirect": { "regexSubstitution": "https://repolith.com/trending" }
 		},
 		"condition": {
 			"regexFilter": "^https://github\\.com/trending",
@@ -264,7 +250,7 @@
 		"priority": 4,
 		"action": {
 			"type": "redirect",
-			"redirect": { "regexSubstitution": "https://repolith.my.id/issues" }
+			"redirect": { "regexSubstitution": "https://repolith.com/issues" }
 		},
 		"condition": {
 			"regexFilter": "^https://github\\.com/issues$",
@@ -276,7 +262,7 @@
 		"priority": 4,
 		"action": {
 			"type": "redirect",
-			"redirect": { "regexSubstitution": "https://repolith.my.id/prs" }
+			"redirect": { "regexSubstitution": "https://repolith.com/prs" }
 		},
 		"condition": {
 			"regexFilter": "^https://github\\.com/pulls$",

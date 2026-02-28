@@ -837,13 +837,21 @@ async function fetchPullRequestFilesFromGitHub(
 	repo: string,
 	pullNumber: number,
 ) {
-	const { data } = await octokit.pulls.listFiles({
-		owner,
-		repo,
-		pull_number: pullNumber,
-		per_page: 100,
-	});
-	return data;
+	const files: Awaited<ReturnType<typeof octokit.pulls.listFiles>>["data"] = [];
+	let page = 1;
+	while (true) {
+		const { data } = await octokit.pulls.listFiles({
+			owner,
+			repo,
+			pull_number: pullNumber,
+			per_page: 100,
+			page,
+		});
+		files.push(...data);
+		if (data.length < 100) break;
+		page++;
+	}
+	return files;
 }
 
 async function fetchPullRequestCommentsFromGitHub(
@@ -3236,6 +3244,178 @@ export async function getCrossReferences(
 	}
 }
 
+export type IssueTimelineEventType =
+	| "closed"
+	| "reopened"
+	| "referenced"
+	| "cross-referenced"
+	| "committed";
+
+export interface IssueTimelineEvent {
+	id: string;
+	event: IssueTimelineEventType;
+	created_at: string;
+	actor: { login: string; avatar_url: string } | null;
+	commit_id?: string;
+	commit_url?: string;
+	state_reason?: string | null;
+	source?: {
+		type: "issue" | "pull_request";
+		number: number;
+		title: string;
+		state: "open" | "closed";
+		merged?: boolean;
+		repoOwner: string;
+		repoName: string;
+	};
+}
+
+export async function getIssueTimelineEvents(
+	owner: string,
+	repo: string,
+	issueNumber: number,
+): Promise<IssueTimelineEvent[]> {
+	const octokit = await getOctokit();
+	if (!octokit) return [];
+
+	try {
+		const events = await octokit.paginate(octokit.issues.listEventsForTimeline, {
+			owner,
+			repo,
+			issue_number: issueNumber,
+			per_page: 100,
+		});
+
+		const timelineEvents: IssueTimelineEvent[] = [];
+
+		for (const event of events) {
+			const eventType = event.event;
+
+			if (eventType === "closed") {
+				const typedEvent = event as {
+					id: number;
+					event: string;
+					created_at: string;
+					actor?: { login: string; avatar_url: string } | null;
+					state_reason?: string | null;
+					commit_id?: string | null;
+					commit_url?: string | null;
+				};
+				timelineEvents.push({
+					id: `closed-${typedEvent.id}`,
+					event: "closed",
+					created_at: typedEvent.created_at,
+					actor: typedEvent.actor ?? null,
+					state_reason: typedEvent.state_reason,
+					commit_id: typedEvent.commit_id ?? undefined,
+					commit_url: typedEvent.commit_url ?? undefined,
+				});
+			} else if (eventType === "reopened") {
+				const typedEvent = event as {
+					id: number;
+					event: string;
+					created_at: string;
+					actor?: { login: string; avatar_url: string } | null;
+				};
+				timelineEvents.push({
+					id: `reopened-${typedEvent.id}`,
+					event: "reopened",
+					created_at: typedEvent.created_at,
+					actor: typedEvent.actor ?? null,
+				});
+			} else if (eventType === "referenced") {
+				const typedEvent = event as {
+					id: number;
+					event: string;
+					created_at: string;
+					actor?: { login: string; avatar_url: string } | null;
+					commit_id?: string | null;
+					commit_url?: string | null;
+				};
+				timelineEvents.push({
+					id: `referenced-${typedEvent.id}`,
+					event: "referenced",
+					created_at: typedEvent.created_at,
+					actor: typedEvent.actor ?? null,
+					commit_id: typedEvent.commit_id ?? undefined,
+					commit_url: typedEvent.commit_url ?? undefined,
+				});
+			} else if (eventType === "cross-referenced") {
+				const typedEvent = event as {
+					created_at?: string;
+					actor?: { login: string; avatar_url: string } | null;
+					source?: {
+						issue?: {
+							pull_request?: {
+								merged_at?: string | null;
+							};
+							repository?: { full_name?: string };
+							number: number;
+							title: string;
+							state: string;
+						};
+					};
+				};
+				const source = typedEvent.source?.issue;
+				if (source) {
+					const repoFullName = source.repository?.full_name;
+					const [refOwner, refName] = repoFullName
+						? repoFullName.split("/")
+						: [owner, repo];
+					timelineEvents.push({
+						id: `cross-ref-${refOwner}-${refName}-${source.number}`,
+						event: "cross-referenced",
+						created_at: typedEvent.created_at ?? "",
+						actor: typedEvent.actor ?? null,
+						source: {
+							type: source.pull_request
+								? "pull_request"
+								: "issue",
+							number: source.number,
+							title: source.title,
+							state: source.state as "open" | "closed",
+							merged: !!source.pull_request?.merged_at,
+							repoOwner: refOwner,
+							repoName: refName,
+						},
+					});
+				}
+			} else if (eventType === "committed") {
+				const typedEvent = event as {
+					sha?: string;
+					url?: string;
+					message?: string;
+					author?: {
+						name?: string;
+						email?: string;
+						date?: string;
+					} | null;
+					committer?: {
+						name?: string;
+						email?: string;
+						date?: string;
+					} | null;
+				};
+				timelineEvents.push({
+					id: `committed-${typedEvent.sha}`,
+					event: "committed",
+					created_at:
+						typedEvent.committer?.date ??
+						typedEvent.author?.date ??
+						"",
+					actor: null,
+					commit_id: typedEvent.sha,
+					commit_url: typedEvent.url,
+				});
+			}
+		}
+
+		return timelineEvents;
+	} catch {
+		return [];
+	}
+}
+
 /** @deprecated Use getCrossReferences instead */
 export async function getLinkedPullRequests(
 	owner: string,
@@ -3344,7 +3524,9 @@ export interface DiscussionReply {
 	createdAt: string;
 	author: { login: string; avatar_url: string; type?: string } | null;
 	upvoteCount: number;
+	viewerHasUpvoted: boolean;
 	isAnswer: boolean;
+	reactions?: ReactionSummary;
 }
 
 export interface DiscussionComment {
@@ -3355,8 +3537,10 @@ export interface DiscussionComment {
 	createdAt: string;
 	author: { login: string; avatar_url: string; type?: string } | null;
 	upvoteCount: number;
+	viewerHasUpvoted: boolean;
 	isAnswer: boolean;
 	replies: DiscussionReply[];
+	reactions?: ReactionSummary;
 }
 
 export interface DiscussionDetail {
@@ -3370,9 +3554,11 @@ export interface DiscussionDetail {
 	category: { name: string; emoji: string; emojiHTML?: string | null; isAnswerable: boolean };
 	commentsCount: number;
 	upvoteCount: number;
+	viewerHasUpvoted: boolean;
 	isAnswered: boolean;
 	answerChosenAt: string | null;
 	labels: Array<{ name?: string; color?: string | null }>;
+	reactions?: ReactionSummary;
 }
 
 // ── Discussion GraphQL queries ──
@@ -3428,6 +3614,10 @@ const DISCUSSION_DETAIL_GRAPHQL = `
 				updatedAt
 				author { __typename login avatarUrl }
 				category { name emoji emojiHTML isAnswerable }
+				reactionGroups {
+					content
+					reactors { totalCount }
+				}
 				comments(first: 50) {
 					totalCount
 					nodes {
@@ -3437,7 +3627,12 @@ const DISCUSSION_DETAIL_GRAPHQL = `
 						createdAt
 						author { __typename login avatarUrl }
 						upvoteCount
+						viewerHasUpvoted
 						isAnswer
+						reactionGroups {
+							content
+							reactors { totalCount }
+						}
 						replies(first: 20) {
 							nodes {
 								id
@@ -3446,12 +3641,18 @@ const DISCUSSION_DETAIL_GRAPHQL = `
 								createdAt
 								author { __typename login avatarUrl }
 								upvoteCount
+								viewerHasUpvoted
 								isAnswer
+								reactionGroups {
+									content
+									reactors { totalCount }
+								}
 							}
 						}
 					}
 				}
 				upvoteCount
+				viewerHasUpvoted
 				isAnswered
 				answerChosenAt
 				labels(first: 20) { nodes { name color } }
@@ -3469,6 +3670,78 @@ const ADD_DISCUSSION_COMMENT_MUTATION = `
 				body
 				createdAt
 				author { login avatarUrl }
+			}
+		}
+	}
+`;
+
+const ADD_DISCUSSION_REACTION_MUTATION = `
+	mutation($subjectId: ID!, $content: ReactionContent!) {
+		addReaction(input: { subjectId: $subjectId, content: $content }) {
+			reaction {
+				id
+				databaseId
+				content
+				user { login avatarUrl }
+			}
+		}
+	}
+`;
+
+const REMOVE_DISCUSSION_REACTION_MUTATION = `
+	mutation($subjectId: ID!, $content: ReactionContent!) {
+		removeReaction(input: { subjectId: $subjectId, content: $content }) {
+			reaction {
+				id
+				content
+			}
+		}
+	}
+`;
+
+const ADD_DISCUSSION_UPVOTE_MUTATION = `
+	mutation($id: ID!) {
+		addUpvoteToDiscussion(input: { discussionId: $id }) {
+			discussion {
+				id
+				upvoteCount
+				viewerHasUpvoted
+			}
+		}
+	}
+`;
+
+const REMOVE_DISCUSSION_UPVOTE_MUTATION = `
+	mutation($id: ID!) {
+		removeUpvoteFromDiscussion(input: { discussionId: $id }) {
+			discussion {
+				id
+				upvoteCount
+				viewerHasUpvoted
+			}
+		}
+	}
+`;
+
+const ADD_DISCUSSION_COMMENT_UPVOTE_MUTATION = `
+	mutation($id: ID!) {
+		addUpvoteToDiscussionComment(input: { discussionCommentId: $id }) {
+			comment {
+				id
+				upvoteCount
+				viewerHasUpvoted
+			}
+		}
+	}
+`;
+
+const REMOVE_DISCUSSION_COMMENT_UPVOTE_MUTATION = `
+	mutation($id: ID!) {
+		removeUpvoteFromDiscussionComment(input: { discussionCommentId: $id }) {
+			comment {
+				id
+				upvoteCount
+				viewerHasUpvoted
 			}
 		}
 	}
@@ -3498,7 +3771,9 @@ interface GQLDiscussionCommentNode {
 	createdAt: string;
 	author: { login: string; avatarUrl: string; __typename?: string } | null;
 	upvoteCount: number;
+	viewerHasUpvoted: boolean;
 	isAnswer: boolean;
+	reactionGroups?: GraphQLReactionGroup[];
 	replies?: {
 		nodes: {
 			id: string;
@@ -3507,7 +3782,9 @@ interface GQLDiscussionCommentNode {
 			createdAt: string;
 			author: { login: string; avatarUrl: string; __typename?: string } | null;
 			upvoteCount: number;
+			viewerHasUpvoted: boolean;
 			isAnswer: boolean;
+			reactionGroups?: GraphQLReactionGroup[];
 		}[];
 	};
 }
@@ -3552,7 +3829,9 @@ function mapGQLDiscussionComment(node: GQLDiscussionCommentNode): DiscussionComm
 		createdAt: node.createdAt,
 		author: mapGQLAuthor(node.author),
 		upvoteCount: node.upvoteCount,
+		viewerHasUpvoted: node.viewerHasUpvoted ?? false,
 		isAnswer: node.isAnswer,
+		reactions: mapReactionGroups(node.reactionGroups),
 		replies: (node.replies?.nodes ?? []).map((r) => ({
 			id: r.id,
 			databaseId: r.databaseId,
@@ -3560,7 +3839,9 @@ function mapGQLDiscussionComment(node: GQLDiscussionCommentNode): DiscussionComm
 			createdAt: r.createdAt,
 			author: mapGQLAuthor(r.author),
 			upvoteCount: r.upvoteCount,
+			viewerHasUpvoted: r.viewerHasUpvoted ?? false,
 			isAnswer: r.isAnswer,
+			reactions: mapReactionGroups(r.reactionGroups),
 		})),
 	};
 }
@@ -3668,8 +3949,10 @@ async function fetchDiscussionDetailGraphQL(
 		},
 		commentsCount: d.comments?.totalCount ?? 0,
 		upvoteCount: d.upvoteCount,
+		viewerHasUpvoted: d.viewerHasUpvoted ?? false,
 		isAnswered: d.isAnswered,
 		answerChosenAt: d.answerChosenAt ?? null,
+		reactions: mapReactionGroups(d.reactionGroups),
 		labels: (d.labels?.nodes ?? []).map((l: { name: string; color: string }) => ({
 			name: l.name,
 			color: l.color,
@@ -3831,6 +4114,157 @@ export async function createDiscussionViaGraphQL(
 	return discussion
 		? { id: discussion.id, number: discussion.number, title: discussion.title }
 		: null;
+}
+
+export type DiscussionReactionContent =
+	| "THUMBS_UP"
+	| "THUMBS_DOWN"
+	| "LAUGH"
+	| "HOORAY"
+	| "CONFUSED"
+	| "HEART"
+	| "ROCKET"
+	| "EYES";
+
+export async function addDiscussionReaction(
+	subjectId: string,
+	content: DiscussionReactionContent,
+): Promise<{ success: boolean; reactionId?: number; error?: string }> {
+	const authCtx = await getGitHubAuthContext();
+	if (!authCtx) return { success: false, error: "Not authenticated" };
+
+	const response = await fetch("https://api.github.com/graphql", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${authCtx.token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			query: ADD_DISCUSSION_REACTION_MUTATION,
+			variables: { subjectId, content },
+		}),
+	});
+
+	if (!response.ok) {
+		return { success: false, error: `Request failed: ${response.status}` };
+	}
+	const json = await response.json();
+	if (json.errors?.length) {
+		return { success: false, error: json.errors[0]?.message ?? "Unknown error" };
+	}
+	const reaction = json.data?.addReaction?.reaction;
+	return { success: true, reactionId: reaction?.databaseId };
+}
+
+export async function removeDiscussionReaction(
+	subjectId: string,
+	content: DiscussionReactionContent,
+): Promise<{ success: boolean; error?: string }> {
+	const authCtx = await getGitHubAuthContext();
+	if (!authCtx) return { success: false, error: "Not authenticated" };
+
+	const response = await fetch("https://api.github.com/graphql", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${authCtx.token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			query: REMOVE_DISCUSSION_REACTION_MUTATION,
+			variables: { subjectId, content },
+		}),
+	});
+
+	if (!response.ok) {
+		return { success: false, error: `Request failed: ${response.status}` };
+	}
+	const json = await response.json();
+	if (json.errors?.length) {
+		return { success: false, error: json.errors[0]?.message ?? "Unknown error" };
+	}
+	return { success: true };
+}
+
+export async function toggleDiscussionUpvote(
+	discussionId: string,
+	hasUpvoted: boolean,
+): Promise<{ success: boolean; upvoteCount?: number; viewerHasUpvoted?: boolean; error?: string }> {
+	const authCtx = await getGitHubAuthContext();
+	if (!authCtx) return { success: false, error: "Not authenticated" };
+
+	const mutation = hasUpvoted
+		? REMOVE_DISCUSSION_UPVOTE_MUTATION
+		: ADD_DISCUSSION_UPVOTE_MUTATION;
+
+	const response = await fetch("https://api.github.com/graphql", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${authCtx.token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			query: mutation,
+			variables: { id: discussionId },
+		}),
+	});
+
+	if (!response.ok) {
+		return { success: false, error: `Request failed: ${response.status}` };
+	}
+	const json = await response.json();
+	if (json.errors?.length) {
+		return { success: false, error: json.errors[0]?.message ?? "Unknown error" };
+	}
+
+	const key = hasUpvoted ? "removeUpvoteFromDiscussion" : "addUpvoteToDiscussion";
+	const result = json.data?.[key]?.discussion;
+	return {
+		success: true,
+		upvoteCount: result?.upvoteCount,
+		viewerHasUpvoted: result?.viewerHasUpvoted,
+	};
+}
+
+export async function toggleDiscussionCommentUpvote(
+	commentId: string,
+	hasUpvoted: boolean,
+): Promise<{ success: boolean; upvoteCount?: number; viewerHasUpvoted?: boolean; error?: string }> {
+	const authCtx = await getGitHubAuthContext();
+	if (!authCtx) return { success: false, error: "Not authenticated" };
+
+	const mutation = hasUpvoted
+		? REMOVE_DISCUSSION_COMMENT_UPVOTE_MUTATION
+		: ADD_DISCUSSION_COMMENT_UPVOTE_MUTATION;
+
+	const response = await fetch("https://api.github.com/graphql", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${authCtx.token}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			query: mutation,
+			variables: { id: commentId },
+		}),
+	});
+
+	if (!response.ok) {
+		return { success: false, error: `Request failed: ${response.status}` };
+	}
+	const json = await response.json();
+	if (json.errors?.length) {
+		return { success: false, error: json.errors[0]?.message ?? "Unknown error" };
+	}
+
+	const key = hasUpvoted
+		? "removeUpvoteFromDiscussionComment"
+		: "addUpvoteToDiscussionComment";
+	const result = json.data?.[key]?.comment;
+	return {
+		success: true,
+		upvoteCount: result?.upvoteCount,
+		viewerHasUpvoted: result?.viewerHasUpvoted,
+	};
 }
 
 export async function invalidateRepoDiscussionsCache(owner: string, repo: string) {
@@ -6225,6 +6659,38 @@ export async function getAuthorDossier(
 		return result;
 	} catch (e) {
 		console.error("[getAuthorDossier] failed:", e);
+		return null;
+	}
+}
+
+export interface ForkSyncStatus {
+	behind: number;
+}
+
+export async function getForkSyncStatus(
+	owner: string,
+	repo: string,
+	defaultBranch: string,
+): Promise<ForkSyncStatus | null> {
+	const octokit = await getOctokit();
+	if (!octokit) return null;
+
+	try {
+		const { data: repoData } = await octokit.repos.get({ owner, repo });
+		if (!repoData.parent) return null;
+
+		const parentOwner = repoData.parent.owner.login;
+
+		// Compare fork against upstream: how many commits is the fork behind?
+		const { data: comparison } = await octokit.repos.compareCommits({
+			owner,
+			repo,
+			base: defaultBranch,
+			head: `${parentOwner}:${defaultBranch}`,
+		});
+
+		return { behind: comparison.ahead_by ?? 0 };
+	} catch {
 		return null;
 	}
 }

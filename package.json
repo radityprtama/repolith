@@ -10,14 +10,14 @@
 		"github",
 		"pull-requests"
 	],
-	"homepage": "https://repolith.my.id",
+	"homepage": "https://repolith.com",
 	"bugs": {
-		"url": "https://github.com/better-auth/repolith/issues"
+		"url": "https://github.com/radityprtama/repolith/issues"
 	},
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/better-auth/repolith.git"
+		"url": "https://github.com/radityprtama/repolith.git"
 	},
 	"type": "module",
 	"scripts": {

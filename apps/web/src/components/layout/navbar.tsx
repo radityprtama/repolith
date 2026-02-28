@@ -132,7 +132,7 @@ export function AppNavbar({ session, notifications }: AppNavbarProps) {
 						</svg>
 
 						<span className="text-sm tracking-tight text-foreground">
-							Repolith.
+							BETTER-HUB.
 						</span>
 					</Link>
 				</div>

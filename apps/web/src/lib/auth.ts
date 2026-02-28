@@ -20,11 +20,7 @@ async function getOctokitUser(token: string) {
 	const octokit = new Octokit({ auth: token });
 	const githubUser = await octokit.users.getAuthenticated();
 	const hash = await createHash("SHA-256", "base64").digest(token);
-	waitUntil(
-		redis.set(`github_user:${hash}`, JSON.stringify(githubUser.data), {
-			ex: 3600,
-		}),
-	);
+	waitUntil(redis.set(`github_user:${hash}`, JSON.stringify(githubUser.data), { ex: 3600 }));
 	return githubUser;
 }
 
@@ -42,7 +38,7 @@ export const auth = betterAuth({
 		patSignIn(),
 		sentinel(),
 		...(process.env.VERCEL
-			? [oAuthProxy({ productionURL: "https://www.repolith.my.id" })]
+			? [oAuthProxy({ productionURL: "https://www.repolith.com" })]
 			: []),
 	],
 	user: {
@@ -88,7 +84,7 @@ export const auth = betterAuth({
 	},
 	trustedOrigins: [
 		// Production
-		"https://www.repolith.my.id",
+		"https://www.repolith.com",
 		// Vercel preview
 		"https://repolith-*-better-auth.vercel.app",
 	],

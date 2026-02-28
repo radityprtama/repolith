@@ -1,4 +1,4 @@
-const DEFAULT_HOST = "https://repolith.my.id";
+const DEFAULT_HOST = "https://repolith.com";
 
 // Track tabs on the logout page so we can avoid redirecting github.com/
 // after logout (declarativeNetRequest cancels the request mid-flight
@@ -24,9 +24,7 @@ chrome.webNavigation.onCommitted.addListener(
 			chrome.tabs.update(details.tabId, { url: `${host}/dashboard` });
 		});
 	},
-	{
-		url: [{ urlEquals: "https://github.com/" }, { urlEquals: "https://github.com" }],
-	},
+	{ url: [{ urlEquals: "https://github.com/" }, { urlEquals: "https://github.com" }] },
 );
 
 // On install: just set defaults. Static rules handle the default host out of the box.

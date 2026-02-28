@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
 						letterSpacing: "0.02em",
 					}}
 				>
-					Repolith.
+					BETTER-HUB.
 				</div>
 			</div>
 		</OGFrame>,

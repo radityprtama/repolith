@@ -688,16 +688,6 @@ function Stat({
 					>
 						{value}
 					</span>
-					{accent && value > 0 && (
-						<span
-							className={cn(
-								"w-1.5 h-1.5 rounded-full",
-								active
-									? "bg-primary"
-									: "bg-foreground/40",
-							)}
-						/>
-					)}
 				</div>
 			</div>
 		</>

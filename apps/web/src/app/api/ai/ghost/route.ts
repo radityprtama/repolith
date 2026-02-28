@@ -27,13 +27,13 @@ import {
 } from "@/lib/github";
 import Supermemory from "supermemory";
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 // ─── Model Config ───────────────────────────────────────────────────────────
 // Central config for "auto" mode. Swap models here — no other changes needed.
 const GHOST_MODELS = {
-	default: process.env.GHOST_MODEL || "qwen/qwen3-coder:free",
-	mergeConflict: process.env.GHOST_MERGE_MODEL || "z-ai/glm-4.5-air:free",
+	default: process.env.GHOST_MODEL || "moonshotai/kimi-k2.5",
+	mergeConflict: process.env.GHOST_MERGE_MODEL || "google/gemini-2.5-pro-preview",
 } as const;
 
 type GhostTaskType = "default" | "mergeConflict";
@@ -368,10 +368,7 @@ function getGeneralTools(octokit: Octokit, pageContext?: PageContext, userId?: s
 				repo: z.string().describe("Repository name"),
 			}),
 			execute: async ({ owner, repo }) => {
-				const { data } = await octokit.repos.createFork({
-					owner,
-					repo,
-				});
+				const { data } = await octokit.repos.createFork({ owner, repo });
 				return {
 					success: true,
 					action: "forked",
@@ -577,9 +574,7 @@ function getGeneralTools(octokit: Octokit, pageContext?: PageContext, userId?: s
 				username: z.string().describe("GitHub username"),
 			}),
 			execute: async ({ username }) => {
-				const { data } = await octokit.users.getByUsername({
-					username,
-				});
+				const { data } = await octokit.users.getByUsername({ username });
 				return {
 					login: data.login,
 					name: data.name,
@@ -1805,10 +1800,7 @@ function buildPrSystemPrompt(
 			priorityDiffs.push(`### ${f.filename}\n\`\`\`diff\n${f.patch}\n\`\`\``);
 			diffCharsUsed += f.patch.length;
 		} else {
-			otherFiles.push({
-				filename: f.filename,
-				patchLen: f.patch?.length ?? 0,
-			});
+			otherFiles.push({ filename: f.filename, patchLen: f.patch?.length ?? 0 });
 		}
 	}
 
@@ -3072,15 +3064,8 @@ export async function POST(req: Request) {
 		const { allowed, current, limit } = await checkAiLimit(userId);
 		if (!allowed) {
 			return new Response(
-				JSON.stringify({
-					error: "MESSAGE_LIMIT_REACHED",
-					current,
-					limit,
-				}),
-				{
-					status: 429,
-					headers: { "Content-Type": "application/json" },
-				},
+				JSON.stringify({ error: "MESSAGE_LIMIT_REACHED", current, limit }),
+				{ status: 429, headers: { "Content-Type": "application/json" } },
 			);
 		}
 		// Increment on request start (before streaming) to prevent gaming by canceling
@@ -3397,13 +3382,6 @@ export async function POST(req: Request) {
 	}
 
 	try {
-		const streamId = conversationId ? generateId() : null;
-
-		// Persist the new stream ID so the GET /stream endpoint can find it
-		if (conversationId && streamId) {
-			await updateActiveStreamId(conversationId, streamId);
-		}
-
 		const result = streamText({
 			model: createOpenRouter({ apiKey })(modelId),
 			system: systemPrompt,
@@ -3414,20 +3392,57 @@ export async function POST(req: Request) {
 			onError() {},
 		});
 
+		if (conversationId) {
+			const convId = conversationId;
+			return result.toUIMessageStreamResponse({
+				sendReasoning: true,
+				originalMessages: messages,
+				generateMessageId: generateId,
+				async consumeSseStream({ stream }) {
+					const streamId = generateId();
+					await streamContext.createNewResumableStream(
+						streamId,
+						() => stream,
+					);
+					await updateActiveStreamId(convId, streamId).catch(
+						() => {},
+					);
+				},
+				onFinish: async ({ messages: finishedMessages }) => {
+					try {
+						// Persist all messages server-side with full parts
+						const toSave = finishedMessages.map((m) => ({
+							id: m.id,
+							role: m.role,
+							content:
+								m.parts
+									?.filter(
+										(
+											p,
+										): p is Extract<
+											typeof p,
+											{
+												type: "text";
+											}
+										> =>
+											p.type ===
+											"text",
+									)
+									.map((p) => p.text)
+									.join("") || "",
+							partsJson: JSON.stringify(m.parts),
+						}));
+						await saveMessagesToDb(convId, toSave);
+					} catch {
+						// Best-effort persistence
+					}
+					await updateActiveStreamId(convId, null).catch(() => {});
+				},
+			});
+		}
+
 		return result.toUIMessageStreamResponse({
 			sendReasoning: true,
-			// Feed the SSE stream into the resumable stream store so that
-			// GET /api/ai/ghost/[id]/stream can reconnect to it.
-			...(streamId
-				? {
-						consumeSseStream: ({ stream: sseStream }) => {
-							streamContext.createNewResumableStream(
-								streamId,
-								() => sseStream,
-							);
-						},
-					}
-				: {}),
 		});
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : "AI request failed";

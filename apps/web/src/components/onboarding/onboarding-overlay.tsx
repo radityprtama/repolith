@@ -234,7 +234,7 @@ export function OnboardingOverlay({
 						<p className="text-[13px] sm:text-[14px] text-white/50 leading-[1.8] sm:leading-[1.85] mt-4 ob-fade-up-d1">
 							Welcome to Repolith. At {""}
 							<a
-								href="https://repolith.my.id"
+								href="https://better-auth.com"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="text-white/70 underline underline-offset-2 decoration-white/20 hover:text-white/90 transition-colors"
