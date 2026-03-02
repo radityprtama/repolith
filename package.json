@@ -4,11 +4,11 @@
 	"description": "A better place to collaborate on code — for humans and agents",
 	"keywords": [
 		"ai-assistant",
-		"better-auth",
 		"code-review",
 		"developer-tools",
 		"github",
-		"pull-requests"
+		"pull-requests",
+		"repolith"
 	],
 	"homepage": "https://repolith.my.id",
 	"bugs": {

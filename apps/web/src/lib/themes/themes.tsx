@@ -28,9 +28,15 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			"editor.foreground": foreground,
 			"editor.background": "#000000",
 			...(highlight && { "editor.lineHighlightBackground": highlight }),
-			...(highlightBorder && { "editor.lineHighlightBorder": highlightBorder }),
-			...(diffDeleted && { "diffEditor.removedTextBackground": diffDeleted }),
-			...(diffInserted && { "diffEditor.insertedTextBackground": diffInserted }),
+			...(highlightBorder && {
+				"editor.lineHighlightBorder": highlightBorder,
+			}),
+			...(diffDeleted && {
+				"diffEditor.removedTextBackground": diffDeleted,
+			}),
+			...(diffInserted && {
+				"diffEditor.insertedTextBackground": diffInserted,
+			}),
 		},
 		tokenColors: [
 			{
@@ -43,7 +49,9 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			},
 			{
 				scope: ["string.template", "string.interpolated"],
-				settings: { foreground: stringExpression ?? string ?? foreground },
+				settings: {
+					foreground: stringExpression ?? string ?? foreground,
+				},
 			},
 			{
 				scope: ["constant", "constant.numeric", "constant.language"],
@@ -79,7 +87,9 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			},
 			{
 				scope: ["meta.objectliteral", "meta.object-literal.key"],
-				settings: { foreground: objectLiteral ?? property ?? foreground },
+				settings: {
+					foreground: objectLiteral ?? property ?? foreground,
+				},
 			},
 		],
 	};
@@ -87,9 +97,9 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 
 // Hub theme: midnight (dark) + hubLight (light)
 export const betterAuthTheme: ThemeDefinition = {
-	id: "better-auth",
-	name: "Better Auth",
-	description: "The Better Auth theme",
+	id: "kalt",
+	name: "Kalt Labs",
+	description: "The Kalt Labs theme",
 	icon: () => (
 		<svg
 			className="w-4"
@@ -137,8 +147,8 @@ export const betterAuthTheme: ThemeDefinition = {
 			"--foreground": "#fafafa",
 			"--card": "#111113",
 			"--card-foreground": "#fafafa",
-			"--primary": "#e4e4e7",
-			"--primary-foreground": "#09090b",
+			"--primary": "#F97316",
+			"--primary-foreground": "#ffffff",
 			"--secondary": "#1a1a1e",
 			"--secondary-foreground": "#fafafa",
 			"--muted": "#1a1a1e",
@@ -147,7 +157,7 @@ export const betterAuthTheme: ThemeDefinition = {
 			"--accent-foreground": "#fafafa",
 			"--border": "#27272a",
 			"--input": "#27272a",
-			"--ring": "#3f3f46",
+			"--ring": "#F97316",
 			"--destructive": "oklch(0.704 0.191 22.216)",
 			"--success": "oklch(0.627 0.194 149.214)",
 			"--warning": "oklch(0.769 0.188 70.08)",
@@ -198,7 +208,7 @@ export const betterAuthTheme: ThemeDefinition = {
 			"--foreground": "#18181b",
 			"--card": "#f9f9f9",
 			"--card-foreground": "#18181b",
-			"--primary": "#18181b",
+			"--primary": "#F97316",
 			"--primary-foreground": "#ffffff",
 			"--secondary": "#f4f4f5",
 			"--secondary-foreground": "#18181b",
@@ -208,7 +218,7 @@ export const betterAuthTheme: ThemeDefinition = {
 			"--accent-foreground": "#18181b",
 			"--border": "#e4e4e7",
 			"--input": "#e4e4e7",
-			"--ring": "#a1a1aa",
+			"--ring": "#F97316",
 			"--destructive": "#dc2626",
 			"--success": "#16a34a",
 			"--warning": "#ca8a04",
