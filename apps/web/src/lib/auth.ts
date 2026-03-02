@@ -75,7 +75,7 @@ export const auth = betterAuth({
 				]
 			: []),
 		...(process.env.VERCEL
-			? [oAuthProxy({ productionURL: "https://www.better-hub.com" })]
+			? [oAuthProxy({ productionURL: "https://www.repolith.my.id" })]
 			: []),
 	],
 	user: {

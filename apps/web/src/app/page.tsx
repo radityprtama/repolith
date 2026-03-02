@@ -91,7 +91,7 @@ export default async function HomePage({
 					</defs>
 				</svg>
 				<span className="text-sm tracking-tight text-foreground">
-					BETTER-HUB.
+					Repolith.
 				</span>
 			</div>
 
