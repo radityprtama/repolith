@@ -5,7 +5,6 @@ import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeStringify from "rehype-stringify";
-import { isGitHubUserAttachmentAssetUrl } from "@/lib/github-user-attachments";
 
 /**
  * GitHub-compatible sanitization schema.
@@ -62,6 +61,7 @@ import { toInternalUrl } from "@/lib/github-utils";
 import { MarkdownCopyHandler } from "@/components/shared/markdown-copy-handler";
 import { ReactiveCodeBlocks } from "@/components/shared/reactive-code-blocks";
 import { MarkdownMentionTooltips } from "@/components/shared/markdown-mention-tooltips";
+import { isGitHubUserAttachmentAssetUrl } from "@/lib/github-user-attachment";
 
 interface RepoContext {
 	owner: string;

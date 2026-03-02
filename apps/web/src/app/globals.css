@@ -499,6 +499,14 @@ tr.diff-search-match-active > td {
     white-space: nowrap;
 }
 
+/* commit hashes */
+.ghmd a.ghmd-commit-ref {
+    text-decoration: none;
+    color: var(--primary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 /* Bold / italic */
 .ghmd strong {
     font-weight: 600;
@@ -812,17 +820,15 @@ tr.diff-search-match-active > td {
     box-sizing: content-box;
     border-style: none;
 }
-
 .ghmd video,
 .ghmd .ghmd-user-attachment-video {
     display: block;
     max-width: 100%;
     width: auto;
     height: auto;
-    margin: 1em;
+    margin-bottom: 1em;
     border-radius: 6px;
 }
-
 /* Badge rows — consecutive image-only paragraphs rendered inline like GitHub */
 .ghmd .ghmd-badges {
     display: inline;
