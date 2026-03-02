@@ -115,6 +115,11 @@ export function toInternalUrl(htmlUrl: string): string {
 	if (parsed.type === "download")
 		return `${base}/releases/download/${encodeURIComponent(parsed.tag)}/${parsed.filename}`;
 
+	if (parsed.type === "action_run") {
+		if (parsed.jobId) return `${base}/actions/${parsed.runId}/job/${parsed.jobId}`;
+		return `${base}/actions/${parsed.runId}`;
+	}
+
 	const { type, number, path } = parsed;
 	if (type === "pull") return `${base}/pulls/${number}`;
 	if (type === "issue") return `${base}/issues/${number}`;
@@ -208,6 +213,13 @@ type ParsedGitHubUrl =
 	  }
 	| {
 			owner: string;
+			repo: string;
+			type: "action_run";
+			runId: number;
+			jobId?: number;
+	  }
+	| {
+			owner: string;
 			type: "user";
 	  };
 
@@ -262,6 +274,44 @@ export function parseGitHubUrl(htmlUrl: string): ParsedGitHubUrl | null {
 				tag: rest[2],
 				filename: rest.slice(3).join("/"),
 			};
+		if (rest[0] === "actions") {
+			// /actions/runs/:runId or /actions/runs/:runId/jobs/:jobId
+			if (rest[1] === "runs" && rest[2]) {
+				const runId = parsePositiveInt(rest[2]);
+				if (runId !== null) {
+					if (rest[3] === "jobs" && rest[4]) {
+						const jobId = parsePositiveInt(rest[4]);
+						if (jobId !== null)
+							return {
+								owner,
+								repo,
+								type: "action_run",
+								runId,
+								jobId,
+							};
+					}
+					return { owner, repo, type: "action_run", runId };
+				}
+			}
+			// /actions/:runId/job/:jobId (better-hub style)
+			if (rest[1]) {
+				const runId = parsePositiveInt(rest[1]);
+				if (runId !== null) {
+					if (rest[2] === "job" && rest[3]) {
+						const jobId = parsePositiveInt(rest[3]);
+						if (jobId !== null)
+							return {
+								owner,
+								repo,
+								type: "action_run",
+								runId,
+								jobId,
+							};
+					}
+					return { owner, repo, type: "action_run", runId };
+				}
+			}
+		}
 
 		return { owner, repo, type: "repo" };
 	} catch {
@@ -419,7 +469,11 @@ export function parseDiffPatch(patch: string): DiffLine[] {
 			}
 			raw.push({ type: "header", content: line });
 		} else if (line.startsWith("+")) {
-			raw.push({ type: "add", content: line.slice(1), newLineNumber: newLine });
+			raw.push({
+				type: "add",
+				content: line.slice(1),
+				newLineNumber: newLine,
+			});
 			newLine++;
 		} else if (line.startsWith("-")) {
 			raw.push({

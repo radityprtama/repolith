@@ -1,219 +1,657 @@
 "use client";
 
-import { useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	fetchIssueComments,
-	addIssueComment,
-} from "@/app/(app)/repos/[owner]/[repo]/issues/issue-actions";
-import {
-	IssueConversation,
-	type IssueTimelineEntry,
-	type IssueCommentEntry,
-	type IssueDescriptionEntry,
-} from "@/components/issue/issue-conversation";
-import { IssueTimelineEvents } from "@/components/issue/issue-timeline-events";
-import type { IssueTimelineEvent } from "@/lib/github";
-import { useMutationEvents } from "@/components/shared/mutation-event-provider";
-export interface IssueComment {
-	id: number;
-	body?: string | null;
+import Link from "next/link";
+import Image from "next/image";
+import { RotateCcw } from "lucide-react";
+import { MarkdownCopyHandler } from "@/components/shared/markdown-copy-handler";
+import { EditableIssueDescription } from "@/components/issue/editable-issue-description";
+import { ReactiveCodeBlocks } from "@/components/shared/reactive-code-blocks";
+import { MarkdownMentionTooltips } from "@/components/shared/markdown-mention-tooltips";
+import { ClientMarkdown } from "@/components/shared/client-markdown";
+import { cn } from "@/lib/utils";
+import { TimeAgo } from "@/components/ui/time-ago";
+import { BotActivityGroup } from "@/components/pr/bot-activity-group";
+import { OlderActivityGroup } from "@/components/issue/older-activity-group";
+import { CollapsibleBody } from "@/components/issue/collapsible-body";
+import { ReactionDisplay, type Reactions } from "@/components/shared/reaction-display";
+import { ChatMessageWrapper } from "@/components/pr/chat-message-wrapper";
+import { UserTooltip } from "@/components/shared/user-tooltip";
+
+interface BaseUser {
+	login: string;
+	avatar_url: string;
+	type?: string;
+}
+
+export interface IssueDescriptionEntry {
+	type: "description";
+	id: string;
+	user: BaseUser | null;
+	body: string;
 	bodyHtml?: string;
-	user: { login: string; avatar_url: string; type?: string } | null;
+	created_at: string;
+	reactions?: Reactions;
+}
+
+export interface IssueCommentEntry {
+	type: "comment";
+	id: number;
+	user: BaseUser | null;
+	body: string;
+	bodyHtml?: string;
 	created_at: string;
 	author_association?: string;
-	reactions?: Record<string, unknown>;
+	reactions?: Reactions;
 	_optimisticStatus?: "pending" | "failed";
 }
 
-function toEntries(comments: IssueComment[]): IssueCommentEntry[] {
-	return comments.map((c) => ({
-		type: "comment" as const,
-		id: c.id,
-		user: c.user,
-		body: c.body || "",
-		bodyHtml: c.bodyHtml,
-		created_at: c.created_at,
-		author_association: c.author_association,
-		reactions: c.reactions ?? undefined,
-		_optimisticStatus: c._optimisticStatus,
-	}));
+export type IssueTimelineEntry = IssueDescriptionEntry | IssueCommentEntry;
+
+function isBot(entry: IssueTimelineEntry): boolean {
+	if (!entry.user) return false;
+	if (entry.type === "description") return false;
+	return (
+		entry.user.type === "Bot" ||
+		entry.user.login.endsWith("[bot]") ||
+		entry.user.login.endsWith("-bot")
+	);
 }
 
-type TimelineSegment =
-	| { type: "entries"; entries: IssueTimelineEntry[] }
-	| { type: "events"; events: IssueTimelineEvent[] };
+type GroupedItem =
+	| { kind: "entry"; entry: IssueTimelineEntry; index: number }
+	| { kind: "bot-group"; entries: IssueTimelineEntry[] }
+	| { kind: "older-activity"; entries: IssueTimelineEntry[] };
 
-function interleaveTimelineAndComments(
-	descriptionEntry: IssueDescriptionEntry,
-	comments: IssueComment[],
-	timelineEvents: IssueTimelineEvent[] = [],
-): TimelineSegment[] {
-	const commentEntries = toEntries(comments);
+/** Threshold: if more than this many human comments, collapse the middle ones */
+const OLDER_ACTIVITY_THRESHOLD = 12;
+/** Keep the first N and last N human entries visible */
+const KEEP_VISIBLE = 4;
 
-	const allItems: Array<
-		| { kind: "entry"; item: IssueTimelineEntry; date: Date }
-		| { kind: "event"; item: IssueTimelineEvent; date: Date }
-	> = [
-		{
-			kind: "entry",
-			item: descriptionEntry,
-			date: new Date(descriptionEntry.created_at),
-		},
-		...commentEntries.map((entry) => ({
-			kind: "entry" as const,
-			item: entry,
-			date: new Date(entry.created_at),
-		})),
-		...timelineEvents.map((event) => ({
-			kind: "event" as const,
-			item: event,
-			date: new Date(event.created_at),
-		})),
-	];
+function groupEntries(entries: IssueTimelineEntry[]): GroupedItem[] {
+	const groups: GroupedItem[] = [];
+	let botBuffer: IssueTimelineEntry[] = [];
 
-	allItems.sort((a, b) => a.date.getTime() - b.date.getTime());
+	const flushBots = () => {
+		if (botBuffer.length === 0) return;
+		groups.push({ kind: "bot-group", entries: [...botBuffer] });
+		botBuffer = [];
+	};
 
-	const segments: TimelineSegment[] = [];
-	let currentEntries: IssueTimelineEntry[] = [];
-	let currentEvents: IssueTimelineEvent[] = [];
-
-	for (const item of allItems) {
-		if (item.kind === "entry") {
-			if (currentEvents.length > 0) {
-				segments.push({ type: "events", events: currentEvents });
-				currentEvents = [];
-			}
-			currentEntries.push(item.item);
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+		if (isBot(entry)) {
+			botBuffer.push(entry);
 		} else {
-			if (currentEntries.length > 0) {
-				segments.push({ type: "entries", entries: currentEntries });
-				currentEntries = [];
-			}
-			currentEvents.push(item.item);
+			flushBots();
+			groups.push({ kind: "entry", entry, index: i });
 		}
 	}
+	flushBots();
 
-	if (currentEntries.length > 0) {
-		segments.push({ type: "entries", entries: currentEntries });
-	}
-	if (currentEvents.length > 0) {
-		segments.push({ type: "events", events: currentEvents });
+	// If many groups, collapse older activity
+	if (groups.length > OLDER_ACTIVITY_THRESHOLD) {
+		const head = groups.slice(0, KEEP_VISIBLE);
+		const middle = groups.slice(KEEP_VISIBLE, groups.length - KEEP_VISIBLE);
+		const tail = groups.slice(groups.length - KEEP_VISIBLE);
+
+		const middleEntries: IssueTimelineEntry[] = [];
+		for (const g of middle) {
+			if (g.kind === "entry") middleEntries.push(g.entry);
+			else if (g.kind === "bot-group") middleEntries.push(...g.entries);
+		}
+
+		const result: GroupedItem[] = [...head];
+		if (middleEntries.length > 0) {
+			result.push({ kind: "older-activity", entries: middleEntries });
+		}
+		result.push(...tail);
+		return result;
 	}
 
-	return segments;
+	return groups;
 }
 
-export function IssueCommentsClient({
+export function IssueConversation({
+	entries,
 	owner,
 	repo,
 	issueNumber,
-	initialComments,
-	descriptionEntry,
 	canEdit,
 	issueTitle,
 	currentUserLogin,
 	viewerHasWriteAccess,
-	timelineEvents,
+	hasMoreAfter = false,
+	onRetryComment,
 }: {
+	entries: IssueTimelineEntry[];
 	owner: string;
 	repo: string;
 	issueNumber: number;
-	initialComments: IssueComment[];
-	descriptionEntry: IssueDescriptionEntry;
 	canEdit?: boolean;
 	issueTitle?: string;
 	currentUserLogin?: string;
 	viewerHasWriteAccess?: boolean;
-	timelineEvents?: IssueTimelineEvent[];
+	hasMoreAfter?: boolean;
+	onRetryComment?: (entry: IssueCommentEntry) => void;
 }) {
-	const router = useRouter();
-	const queryClient = useQueryClient();
-	const { emit } = useMutationEvents();
-	const queryKey = ["issue-comments", owner, repo, issueNumber];
-
-	useEffect(() => {
-		queryClient.setQueryData(queryKey, initialComments);
-	}, [initialComments]);
-
-	const { data: comments = initialComments } = useQuery({
-		queryKey,
-		queryFn: () =>
-			fetchIssueComments(owner, repo, issueNumber) as Promise<IssueComment[]>,
-		initialData: initialComments,
-		staleTime: 5 * 60 * 1000,
-		gcTime: 10 * 60 * 1000,
-	});
-
-	const retryComment = useCallback(
-		async (entry: IssueCommentEntry) => {
-			queryClient.setQueryData<IssueComment[]>(queryKey, (prev = []) =>
-				prev.map((c) =>
-					c.id === entry.id
-						? { ...c, _optimisticStatus: "pending" as const }
-						: c,
-				),
-			);
-			const res = await addIssueComment(owner, repo, issueNumber, entry.body);
-			if (res.error) {
-				queryClient.setQueryData<IssueComment[]>(queryKey, (prev = []) =>
-					prev.map((c) =>
-						c.id === entry.id
-							? {
-									...c,
-									_optimisticStatus:
-										"failed" as const,
-								}
-							: c,
-					),
-				);
-			} else {
-				emit({
-					type: "issue:commented",
-					owner,
-					repo,
-					number: issueNumber,
-				});
-				router.refresh();
-			}
-		},
-		[owner, repo, issueNumber],
-	);
-
-	const segments = useMemo(
-		() => interleaveTimelineAndComments(descriptionEntry, comments, timelineEvents),
-		[descriptionEntry, comments, timelineEvents],
-	);
+	const grouped = groupEntries(entries);
+	const showLine = grouped.length > 1 || hasMoreAfter;
 
 	return (
-		<>
-			{segments.map((segment, idx) => {
-				const isLastSegment = idx === segments.length - 1;
-				return segment.type === "entries" ? (
-					<IssueConversation
-						key={`entries-${idx}`}
-						entries={segment.entries}
+		<div className="relative">
+			{/* Timeline connector line */}
+			{showLine && (
+				<div className="absolute left-[19px] top-10 bottom-4 w-px bg-border/50" />
+			)}
+
+			<div className="space-y-4">
+				{grouped.map((item, gi) => {
+					if (item.kind === "bot-group") {
+						const botNames = [
+							...new Set(
+								item.entries.map(
+									(e) => e.user!.login,
+								),
+							),
+						];
+						const avatars = [
+							...new Set(
+								item.entries.map(
+									(e) => e.user!.avatar_url,
+								),
+							),
+						];
+						return (
+							<div
+								key={`bot-group-${gi}`}
+								className="relative pl-12"
+							>
+								<BotActivityGroup
+									count={item.entries.length}
+									botNames={botNames}
+									avatars={avatars}
+								>
+									<div className="space-y-3">
+										{item.entries.map(
+											(entry) => (
+												<ThreadComment
+													key={`comment-${entry.id}`}
+													entry={
+														entry
+													}
+													owner={
+														owner
+													}
+													repo={
+														repo
+													}
+													issueNumber={
+														issueNumber
+													}
+													currentUserLogin={
+														currentUserLogin
+													}
+													viewerHasWriteAccess={
+														viewerHasWriteAccess
+													}
+													onRetryComment={
+														onRetryComment
+													}
+												/>
+											),
+										)}
+									</div>
+								</BotActivityGroup>
+							</div>
+						);
+					}
+
+					if (item.kind === "older-activity") {
+						const avatars = [
+							...new Set(
+								item.entries
+									.filter((e) => e.user)
+									.map(
+										(e) =>
+											e.user!
+												.avatar_url,
+									),
+							),
+						];
+						return (
+							<div
+								key={`older-${gi}`}
+								className="relative pl-12"
+							>
+								<OlderActivityGroup
+									count={item.entries.length}
+									participantAvatars={avatars}
+								>
+									{item.entries.map(
+										(entry) => (
+											<ThreadComment
+												key={
+													entry.type ===
+													"description"
+														? entry.id
+														: `comment-${entry.id}`
+												}
+												entry={
+													entry
+												}
+												owner={
+													owner
+												}
+												repo={
+													repo
+												}
+												issueNumber={
+													issueNumber
+												}
+												currentUserLogin={
+													currentUserLogin
+												}
+												viewerHasWriteAccess={
+													viewerHasWriteAccess
+												}
+												onRetryComment={
+													onRetryComment
+												}
+											/>
+										),
+									)}
+								</OlderActivityGroup>
+							</div>
+						);
+					}
+
+					const { entry } = item;
+					const isDescription = entry.type === "description";
+
+					return (
+						<ThreadEntry
+							key={
+								isDescription
+									? "description"
+									: `comment-${entry.id}`
+							}
+							entry={entry}
+							isDescription={isDescription}
+							owner={owner}
+							repo={repo}
+							issueNumber={issueNumber}
+							canEdit={canEdit}
+							issueTitle={issueTitle}
+							currentUserLogin={currentUserLogin}
+							viewerHasWriteAccess={viewerHasWriteAccess}
+							onRetryComment={onRetryComment}
+						/>
+					);
+				})}
+
+				{entries.length === 0 && (
+					<div className="py-8 text-center">
+						<p className="text-sm text-muted-foreground">
+							No conversation yet
+						</p>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function ThreadEntry({
+	entry,
+	isDescription,
+	owner,
+	repo,
+	issueNumber,
+	canEdit,
+	issueTitle,
+	currentUserLogin,
+	viewerHasWriteAccess,
+	onRetryComment,
+}: {
+	entry: IssueTimelineEntry;
+	isDescription: boolean;
+	owner: string;
+	repo: string;
+	issueNumber: number;
+	canEdit?: boolean;
+	issueTitle?: string;
+	currentUserLogin?: string;
+	viewerHasWriteAccess?: boolean;
+	onRetryComment?: (entry: IssueCommentEntry) => void;
+}) {
+	const hasBody = Boolean(entry.body && entry.body.trim().length > 0);
+	const isLong = hasBody && entry.body.length > 800;
+	const canEditComment = !!(
+		currentUserLogin &&
+		(currentUserLogin === entry.user?.login || viewerHasWriteAccess)
+	);
+
+	const renderedBody = entry.bodyHtml ? (
+		<MarkdownCopyHandler>
+			<ReactiveCodeBlocks>
+				<MarkdownMentionTooltips>
+					<div
+						className="ghmd"
+						dangerouslySetInnerHTML={{ __html: entry.bodyHtml }}
+					/>
+				</MarkdownMentionTooltips>
+			</ReactiveCodeBlocks>
+		</MarkdownCopyHandler>
+	) : entry.body ? (
+		<ClientMarkdown content={entry.body} />
+	) : null;
+
+	return (
+		<div className="flex gap-3 relative">
+			{/* Avatar */}
+			<div className="shrink-0 relative z-10">
+				{entry.user ? (
+					<UserTooltip username={entry.user.login} side="right">
+						<Link href={`/users/${entry.user.login}`}>
+							<Image
+								src={entry.user.avatar_url}
+								alt={entry.user.login}
+								width={40}
+								height={40}
+								className={cn(
+									"rounded-full bg-background",
+									isDescription
+										? "ring-2 ring-border/60"
+										: "",
+								)}
+							/>
+						</Link>
+					</UserTooltip>
+				) : (
+					<div className="w-10 h-10 rounded-full bg-muted-foreground/20" />
+				)}
+			</div>
+
+			{/* Content */}
+			<div className="flex-1 min-w-0">
+				{isDescription ? (
+					canEdit && issueTitle !== undefined ? (
+						<EditableIssueDescription
+							entry={entry}
+							issueTitle={issueTitle}
+							owner={owner}
+							repo={repo}
+							issueNumber={issueNumber}
+						/>
+					) : (
+						<DescriptionBlock
+							entry={entry}
+							hasBody={hasBody}
+							isLong={isLong}
+							renderedBody={renderedBody}
+							owner={owner}
+							repo={repo}
+							issueNumber={issueNumber}
+						/>
+					)
+				) : (
+					<CommentBlock
+						entry={entry as IssueCommentEntry}
+						hasBody={hasBody}
+						isLong={isLong}
+						renderedBody={renderedBody}
 						owner={owner}
 						repo={repo}
 						issueNumber={issueNumber}
-						canEdit={canEdit}
-						issueTitle={issueTitle}
-						currentUserLogin={currentUserLogin}
-						viewerHasWriteAccess={viewerHasWriteAccess}
-						hasMoreAfter={!isLastSegment}
-						onRetryComment={retryComment}
+						canEditComment={canEditComment}
+						onRetry={onRetryComment}
 					/>
-				) : (
-					<IssueTimelineEvents
-						key={`events-${idx}`}
-						events={segment.events}
-						owner={owner}
-						repo={repo}
-						isLastSegment={isLastSegment}
-					/>
-				);
-			})}
+				)}
+			</div>
+		</div>
+	);
+}
+
+function DescriptionBlock({
+	entry,
+	hasBody,
+	isLong,
+	renderedBody,
+	owner,
+	repo,
+	issueNumber,
+}: {
+	entry: IssueTimelineEntry;
+	hasBody: boolean;
+	isLong: boolean;
+	renderedBody: React.ReactNode;
+	owner: string;
+	repo: string;
+	issueNumber: number;
+}) {
+	return (
+		<div className="border border-border/60 rounded-lg overflow-hidden">
+			<div className="flex items-center gap-2 px-3.5 py-2 border-b border-border/60 bg-card/80">
+				{entry.user && (
+					<UserTooltip username={entry.user.login}>
+						<Link
+							href={`/users/${entry.user.login}`}
+							className="text-xs font-semibold text-foreground/90 hover:text-foreground hover:underline transition-colors"
+						>
+							{entry.user.login}
+						</Link>
+					</UserTooltip>
+				)}
+				<span className="text-[11px] text-muted-foreground/50">
+					commented <TimeAgo date={entry.created_at} />
+				</span>
+			</div>
+
+			{hasBody && renderedBody ? (
+				<div className="px-3.5 py-3">
+					{isLong ? (
+						<CollapsibleBody>{renderedBody}</CollapsibleBody>
+					) : (
+						renderedBody
+					)}
+				</div>
+			) : (
+				<div className="px-3.5 py-4">
+					<p className="text-sm text-muted-foreground/30 italic">
+						No description provided.
+					</p>
+				</div>
+			)}
+
+			<div className="px-3.5 pb-2.5">
+				<ReactionDisplay
+					reactions={entry.reactions ?? {}}
+					owner={owner}
+					repo={repo}
+					contentType="issue"
+					contentId={issueNumber}
+				/>
+			</div>
+		</div>
+	);
+}
+
+function CommentBlock({
+	entry,
+	hasBody,
+	isLong,
+	renderedBody,
+	owner,
+	repo,
+	issueNumber,
+	canEditComment,
+	onRetry,
+}: {
+	entry: IssueCommentEntry;
+	hasBody: boolean;
+	isLong: boolean;
+	renderedBody: React.ReactNode;
+	owner: string;
+	repo: string;
+	issueNumber: number;
+	canEditComment?: boolean;
+	onRetry?: (entry: IssueCommentEntry) => void;
+}) {
+	const { _optimisticStatus } = entry;
+	const isOptimistic = !!_optimisticStatus;
+
+	const headerContent = (
+		<>
+			{entry.user ? (
+				<UserTooltip username={entry.user.login}>
+					<Link
+						href={`/users/${entry.user.login}`}
+						className="text-xs font-semibold text-foreground/90 hover:text-foreground hover:underline transition-colors"
+					>
+						{entry.user.login}
+					</Link>
+				</UserTooltip>
+			) : (
+				<span className="text-xs font-semibold text-foreground/80">
+					ghost
+				</span>
+			)}
+			{entry.author_association && entry.author_association !== "NONE" && (
+				<span className="text-[9px] px-1.5 py-0.5 border border-border/60 text-muted-foreground/50 rounded font-medium">
+					{entry.author_association.toLowerCase()}
+				</span>
+			)}
+			{_optimisticStatus === "pending" ? (
+				<span className="text-[11px] text-muted-foreground/40 italic">
+					commenting…
+				</span>
+			) : _optimisticStatus === "failed" ? (
+				<span className="flex items-center gap-1 text-[11px] text-destructive/70">
+					failed to comment
+					<button
+						type="button"
+						onClick={() => onRetry?.(entry)}
+						className="inline-flex items-center gap-0.5 hover:text-destructive transition-colors cursor-pointer"
+						title="Retry"
+					>
+						<RotateCcw className="w-3 h-3" />
+					</button>
+				</span>
+			) : (
+				<span className="text-[11px] text-muted-foreground/50">
+					commented <TimeAgo date={entry.created_at} />
+				</span>
+			)}
 		</>
+	);
+
+	const bodyContent =
+		hasBody && renderedBody ? (
+			<div className="px-3.5 py-3">
+				{isLong ? (
+					<CollapsibleBody>{renderedBody}</CollapsibleBody>
+				) : (
+					renderedBody
+				)}
+			</div>
+		) : (
+			<div className="px-3.5 py-4">
+				<p className="text-sm text-muted-foreground/30 italic">
+					No description provided.
+				</p>
+			</div>
+		);
+
+	const reactionsContent = (
+		<ReactionDisplay
+			reactions={entry.reactions ?? {}}
+			owner={owner}
+			repo={repo}
+			contentType="issueComment"
+			contentId={entry.id}
+		/>
+	);
+
+	return (
+		<ChatMessageWrapper
+			headerContent={headerContent}
+			bodyContent={bodyContent}
+			reactionsContent={isOptimistic ? null : reactionsContent}
+			owner={owner}
+			repo={repo}
+			contentType="issue"
+			issueNumber={issueNumber}
+			commentId={entry.id}
+			body={entry.body}
+			canEdit={isOptimistic ? false : canEditComment}
+		/>
+	);
+}
+
+function ThreadComment({
+	entry,
+	owner,
+	repo,
+	issueNumber,
+	currentUserLogin,
+	viewerHasWriteAccess,
+	onRetryComment,
+}: {
+	entry: IssueTimelineEntry;
+	owner: string;
+	repo: string;
+	issueNumber: number;
+	currentUserLogin?: string;
+	viewerHasWriteAccess?: boolean;
+	onRetryComment?: (entry: IssueCommentEntry) => void;
+}) {
+	const hasBody = Boolean(entry.body && entry.body.trim().length > 0);
+	const isLong = hasBody && entry.body.length > 800;
+	const canEditComment = !!(
+		currentUserLogin &&
+		(currentUserLogin === entry.user?.login || viewerHasWriteAccess)
+	);
+
+	const renderedBody = entry.bodyHtml ? (
+		<MarkdownCopyHandler>
+			<ReactiveCodeBlocks>
+				<MarkdownMentionTooltips>
+					<div
+						className="ghmd ghmd-sm"
+						dangerouslySetInnerHTML={{ __html: entry.bodyHtml }}
+					/>
+				</MarkdownMentionTooltips>
+			</ReactiveCodeBlocks>
+		</MarkdownCopyHandler>
+	) : entry.body ? (
+		<ClientMarkdown content={entry.body} />
+	) : null;
+
+	if (entry.type === "description") {
+		return (
+			<DescriptionBlock
+				entry={entry}
+				hasBody={hasBody}
+				isLong={isLong}
+				renderedBody={renderedBody}
+				owner={owner}
+				repo={repo}
+				issueNumber={issueNumber}
+			/>
+		);
+	}
+
+	return (
+		<CommentBlock
+			entry={entry as IssueCommentEntry}
+			hasBody={hasBody}
+			isLong={isLong}
+			renderedBody={renderedBody}
+			owner={owner}
+			repo={repo}
+			issueNumber={issueNumber}
+			canEditComment={canEditComment}
+			onRetry={onRetryComment}
+		/>
 	);
 }
