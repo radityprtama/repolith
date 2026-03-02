@@ -21,10 +21,11 @@ const TABS = [
 	{ id: "account", label: "Account", icon: User },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+export type TabId = (typeof TABS)[number]["id"];
 
 interface SettingsContentProps {
 	initialSettings: UserSettings;
+	initialTab?: TabId;
 	user: { name: string; email: string; image: string | null };
 	githubProfile: GitHubProfile;
 	onThemeTransition?: () => void;
@@ -32,11 +33,12 @@ interface SettingsContentProps {
 
 export function SettingsContent({
 	initialSettings,
+	initialTab,
 	user,
 	githubProfile,
 	onThemeTransition,
 }: SettingsContentProps) {
-	const [activeTab, setActiveTab] = useState<TabId>("general");
+	const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "general");
 	const [settings, setSettings] = useState(initialSettings);
 	const { emit } = useMutationEvents();
 	const queryClient = useQueryClient();
@@ -142,7 +144,9 @@ export function SettingsContent({
 				{activeTab === "ai" && (
 					<AIModelTab settings={settings} onUpdate={handleUpdate} />
 				)}
-				{activeTab === "billing" && <BillingTab />}
+				{activeTab === "billing" && (
+					<BillingTab settings={settings} onNavigate={setActiveTab} />
+				)}
 				{activeTab === "account" && (
 					<AccountTab
 						user={user}

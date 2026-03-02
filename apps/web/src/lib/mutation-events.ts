@@ -1,8 +1,23 @@
 // ── PR Events ─────────────────────────────────────────────────
 
-export type PRMergedEvent = { type: "pr:merged"; owner: string; repo: string; number: number };
-export type PRClosedEvent = { type: "pr:closed"; owner: string; repo: string; number: number };
-export type PRReopenedEvent = { type: "pr:reopened"; owner: string; repo: string; number: number };
+export type PRMergedEvent = {
+	type: "pr:merged";
+	owner: string;
+	repo: string;
+	number: number;
+};
+export type PRClosedEvent = {
+	type: "pr:closed";
+	owner: string;
+	repo: string;
+	number: number;
+};
+export type PRReopenedEvent = {
+	type: "pr:reopened";
+	owner: string;
+	repo: string;
+	number: number;
+};
 export type PRConvertedToDraftEvent = {
 	type: "pr:converted_to_draft";
 	owner: string;
@@ -15,8 +30,18 @@ export type PRCommentedEvent = {
 	repo: string;
 	number: number;
 };
-export type PRReviewedEvent = { type: "pr:reviewed"; owner: string; repo: string; number: number };
-export type PRRenamedEvent = { type: "pr:renamed"; owner: string; repo: string; number: number };
+export type PRReviewedEvent = {
+	type: "pr:reviewed";
+	owner: string;
+	repo: string;
+	number: number;
+};
+export type PRRenamedEvent = {
+	type: "pr:renamed";
+	owner: string;
+	repo: string;
+	number: number;
+};
 export type PRBranchUpdatedEvent = {
 	type: "pr:branch-updated";
 	owner: string;
@@ -104,19 +129,59 @@ export type DiscussionCommentedEvent = {
 
 // ── Prompt Events ─────────────────────────────────────────────
 
-export type PromptCreatedEvent = { type: "prompt:created"; owner: string; repo: string };
-export type PromptAcceptedEvent = { type: "prompt:accepted"; owner: string; repo: string };
-export type PromptClosedEvent = { type: "prompt:closed"; owner: string; repo: string };
-export type PromptReopenedEvent = { type: "prompt:reopened"; owner: string; repo: string };
-export type PromptDeletedEvent = { type: "prompt:deleted"; owner: string; repo: string };
+export type PromptCreatedEvent = {
+	type: "prompt:created";
+	owner: string;
+	repo: string;
+};
+export type PromptAcceptedEvent = {
+	type: "prompt:accepted";
+	owner: string;
+	repo: string;
+};
+export type PromptClosedEvent = {
+	type: "prompt:closed";
+	owner: string;
+	repo: string;
+};
+export type PromptReopenedEvent = {
+	type: "prompt:reopened";
+	owner: string;
+	repo: string;
+};
+export type PromptDeletedEvent = {
+	type: "prompt:deleted";
+	owner: string;
+	repo: string;
+};
 
 // ── Repo Events ───────────────────────────────────────────────
 
-export type RepoStarredEvent = { type: "repo:starred"; owner: string; repo: string };
-export type RepoUnstarredEvent = { type: "repo:unstarred"; owner: string; repo: string };
-export type RepoCreatedEvent = { type: "repo:created"; owner: string; repo: string };
-export type RepoFileCommittedEvent = { type: "repo:file-committed"; owner: string; repo: string };
-export type RepoBranchDeletedEvent = { type: "repo:branch-deleted"; owner: string; repo: string };
+export type RepoStarredEvent = {
+	type: "repo:starred";
+	owner: string;
+	repo: string;
+};
+export type RepoUnstarredEvent = {
+	type: "repo:unstarred";
+	owner: string;
+	repo: string;
+};
+export type RepoCreatedEvent = {
+	type: "repo:created";
+	owner: string;
+	repo: string;
+};
+export type RepoFileCommittedEvent = {
+	type: "repo:file-committed";
+	owner: string;
+	repo: string;
+};
+export type RepoBranchDeletedEvent = {
+	type: "repo:branch-deleted";
+	owner: string;
+	repo: string;
+};
 
 // ── Pin Events ───────────────────────────────────────────────
 
@@ -128,10 +193,16 @@ export type PinAddedEvent = {
 	title: string;
 	itemType: string;
 };
-export type PinRemovedEvent = { type: "pin:removed"; owner: string; repo: string; url: string };
+export type PinRemovedEvent = {
+	type: "pin:removed";
+	owner: string;
+	repo: string;
+	url: string;
+};
 
 // ── Settings Events ───────────────────────────────────────────
 
+export type SettingsOpenEvent = { type: "settings:open"; tab?: string };
 export type SettingsUpdatedEvent = { type: "settings:updated" };
 export type GitHubAccountAddedEvent = { type: "github-account:added" };
 export type GitHubAccountRemovedEvent = { type: "github-account:removed" };
@@ -140,7 +211,10 @@ export type GitHubAccountSwitchedEvent = { type: "github-account:switched" };
 // ── Notification Events ──────────────────────────────────────
 
 export type NotificationReadEvent = { type: "notification:read"; id: string };
-export type NotificationAllReadEvent = { type: "notification:all-read"; ids: string[] };
+export type NotificationAllReadEvent = {
+	type: "notification:all-read";
+	ids: string[];
+};
 
 // ── Discriminated Union ───────────────────────────────────────
 
@@ -177,6 +251,7 @@ export type MutationEvent =
 	| RepoBranchDeletedEvent
 	| PinAddedEvent
 	| PinRemovedEvent
+	| SettingsOpenEvent
 	| SettingsUpdatedEvent
 	| GitHubAccountAddedEvent
 	| GitHubAccountRemovedEvent

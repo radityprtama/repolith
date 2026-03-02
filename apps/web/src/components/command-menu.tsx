@@ -53,6 +53,7 @@ import {
 	unpinFromOverview,
 	getPinnedUrlsForRepo,
 } from "@/app/(app)/repos/[owner]/[repo]/pin-actions";
+import { SELECTABLE_MODELS } from "@/lib/billing/ai-models";
 
 interface SearchRepo {
 	id: number;
@@ -168,53 +169,15 @@ export function CommandMenu() {
 
 	// File tree state (for "Go to file" on repo pages)
 	const repoContext = useMemo(() => matchRepoFromPathname(pathname), [pathname]);
-	const [fileTree, setFileTree] = useState<{ files: string[]; defaultBranch: string } | null>(
-		null,
-	);
+	const [fileTree, setFileTree] = useState<{
+		files: string[];
+		defaultBranch: string;
+	} | null>(null);
 	const [fileTreeLoading, setFileTreeLoading] = useState(false);
 	const fileTreeRepoRef = useRef<string>("");
+	const prevModeRef = useRef(mode);
 
-	// Track previous mode to detect when entering theme mode
-	const prevModeRef = useRef<Mode>("commands");
-
-	const MODELS = useMemo(
-		() => [
-			{
-				id: "moonshotai/kimi-k2.5",
-				label: "Kimi K2.5",
-				desc: "Moonshot AI — Default",
-			},
-			{
-				id: "anthropic/claude-sonnet-4",
-				label: "Claude Sonnet 4",
-				desc: "Anthropic",
-			},
-			{
-				id: "anthropic/claude-opus-4",
-				label: "Claude Opus 4",
-				desc: "Anthropic",
-			},
-			{ id: "openai/gpt-4.1", label: "GPT-4.1", desc: "OpenAI" },
-			{ id: "openai/o3-mini", label: "o3-mini", desc: "OpenAI" },
-			{
-				id: "google/gemini-2.5-pro-preview",
-				label: "Gemini 2.5 Pro",
-				desc: "Google",
-			},
-			{
-				id: "google/gemini-2.5-flash-preview",
-				label: "Gemini 2.5 Flash",
-				desc: "Google",
-			},
-			{ id: "deepseek/deepseek-chat-v3", label: "DeepSeek V3", desc: "DeepSeek" },
-			{
-				id: "meta-llama/llama-4-maverick",
-				label: "Llama 4 Maverick",
-				desc: "Meta",
-			},
-		],
-		[],
-	);
+	const MODELS = SELECTABLE_MODELS;
 
 	const fetchSettings = useCallback(async () => {
 		setSettingsLoading(true);
@@ -1000,7 +963,11 @@ export function CommandMenu() {
 			{ name: "Overview", href: base, icon: Eye },
 			{ name: "Code", href: `${base}/code`, icon: Code },
 			{ name: "Commits", href: `${base}/commits`, icon: GitCommit },
-			{ name: "Pull Requests", href: `${base}/pulls`, icon: GitPullRequest },
+			{
+				name: "Pull Requests",
+				href: `${base}/pulls`,
+				icon: GitPullRequest,
+			},
 			{ name: "Issues", href: `${base}/issues`, icon: CircleDot },
 			{ name: "Actions", href: `${base}/actions`, icon: Play },
 			{ name: "Security", href: `${base}/security`, icon: Shield },
@@ -1160,7 +1127,11 @@ export function CommandMenu() {
 	}, [regularThemes, brandedThemes, setColorTheme]);
 
 	// --- Radius mode items ---
-	const RADIUS_OPTIONS: { id: BorderRadiusPreset; label: string; description: string }[] = [
+	const RADIUS_OPTIONS: {
+		id: BorderRadiusPreset;
+		label: string;
+		description: string;
+	}[] = [
 		{ id: "default", label: "Default", description: "Sharp corners" },
 		{ id: "small", label: "Small", description: "Subtle rounding" },
 		{ id: "medium", label: "Medium", description: "Balanced corners" },
@@ -1322,13 +1293,21 @@ export function CommandMenu() {
 	// --- Settings mode items ---
 	const settingsItems = useMemo(() => {
 		const items: { id: string; action: () => void; keepOpen: boolean }[] = [
-			{ id: "settings-theme", action: () => switchMode("theme"), keepOpen: true },
+			{
+				id: "settings-theme",
+				action: () => switchMode("theme"),
+				keepOpen: true,
+			},
 			{
 				id: "settings-radius",
 				action: () => switchMode("radius"),
 				keepOpen: true,
 			},
-			{ id: "settings-model", action: () => switchMode("model"), keepOpen: true },
+			{
+				id: "settings-model",
+				action: () => switchMode("model"),
+				keepOpen: true,
+			},
 			{
 				id: "settings-accounts",
 				action: () => switchMode("accounts"),
@@ -1349,7 +1328,7 @@ export function CommandMenu() {
 				m.desc.toLowerCase().includes(s) ||
 				m.id.toLowerCase().includes(s),
 		);
-	}, [mode, search, MODELS]);
+	}, [mode, search]);
 
 	const modelItems = useMemo(() => {
 		return filteredModels.map((m) => ({
