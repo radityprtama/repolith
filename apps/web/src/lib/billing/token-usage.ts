@@ -10,6 +10,7 @@ import { ACTIVE_SUBSCRIPTION_STATUSES, FIXED_COSTS } from "./config";
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../db";
 import { reportUsageToStripe } from "./stripe";
+import { reportUsageToPolar } from "./polar";
 
 const TX_OPTIONS = {
 	isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -126,6 +127,7 @@ export async function logTokenUsage(params: {
 				creditUsed,
 				aiCallLogId: aiCallLog.id,
 				stripeReported: costUsd <= 0,
+				polarReported: costUsd <= 0,
 			},
 		});
 	});
@@ -133,6 +135,9 @@ export async function logTokenUsage(params: {
 	if (Number(usageLog.costUsd) > 0) {
 		reportUsageToStripe(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
 			(e) => console.error("[billing] reportUsageToStripe failed:", e),
+		);
+		reportUsageToPolar(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
+			(e) => console.error("[billing] reportUsageToPolar failed:", e),
 		);
 	}
 }
@@ -158,6 +163,7 @@ export async function logFixedCostUsage(params: {
 				costUsd,
 				creditUsed,
 				stripeReported: costUsd <= 0,
+				polarReported: costUsd <= 0,
 			},
 		});
 	});
@@ -165,6 +171,9 @@ export async function logFixedCostUsage(params: {
 	if (Number(usageLog.costUsd) > 0) {
 		reportUsageToStripe(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
 			(e) => console.error("[billing] reportUsageToStripe failed:", e),
+		);
+		reportUsageToPolar(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
+			(e) => console.error("[billing] reportUsageToPolar failed:", e),
 		);
 	}
 }

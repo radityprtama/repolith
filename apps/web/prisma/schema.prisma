@@ -33,6 +33,7 @@ model User {
   banExpires     DateTime?
 
   stripeCustomerId String?
+  polarCustomerId  String?
 
   @@map("user")
   @@index([githubPat, email])
@@ -270,6 +271,7 @@ model UsageLog {
   creditUsed      Decimal  @default(0) @db.Decimal(10, 6)
   aiCallLogId     Int?     @unique
   stripeReported  Boolean  @default(false)
+  polarReported   Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   aiCallLog AiCallLog? @relation(fields: [aiCallLogId], references: [id])
@@ -277,6 +279,7 @@ model UsageLog {
 
   @@index([userId, createdAt])
   @@index([stripeReported, createdAt])
+  @@index([polarReported, createdAt])
   @@map("usage_logs")
 }
 

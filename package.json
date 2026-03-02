@@ -7,8 +7,8 @@
 		"code-review",
 		"developer-tools",
 		"github",
-		"pull-requests",
-		"repolith"
+		"kalt",
+		"pull-requests"
 	],
 	"homepage": "https://repolith.my.id",
 	"bugs": {
@@ -32,9 +32,6 @@
 		"check": "pnpm lint && pnpm fmt:check && pnpm typecheck",
 		"fix": "pnpm lint:fix && pnpm fmt",
 		"prepare": "simple-git-hooks"
-	},
-	"dependencies": {
-		"@better-auth/stripe": "^1.5.0"
 	},
 	"devDependencies": {
 		"@types/node": "^25.3.0",

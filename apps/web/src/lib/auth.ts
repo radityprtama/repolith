@@ -12,6 +12,8 @@ import { createHash } from "@better-auth/utils/hash";
 import { admin, oAuthProxy } from "better-auth/plugins";
 import { stripe } from "@better-auth/stripe";
 import { getStripeClient, isStripeEnabled } from "./billing/stripe";
+import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
+import { getPolarClient, isPolarEnabled } from "./billing/polar";
 import { grantSignupCredits } from "./billing/credit";
 import { patSignIn } from "./auth-plugins/pat-signin";
 
@@ -71,6 +73,48 @@ export const auth = betterAuth({
 								},
 							],
 						},
+					}),
+				]
+			: []),
+		...(isPolarEnabled
+			? [
+					polar({
+						client: getPolarClient(),
+						createCustomerOnSignUp: true,
+						use: [
+							checkout({
+								products: [
+									{
+										productId: process
+											.env
+											.POLAR_PRODUCT_ID!,
+										slug: "base",
+									},
+								],
+								successUrl: "/settings?tab=billing&checkout_id={CHECKOUT_ID}",
+								authenticatedUsersOnly: true,
+							}),
+							portal(),
+							usage(),
+							webhooks({
+								secret: process.env
+									.POLAR_WEBHOOK_SECRET!,
+								onOrderPaid: async (payload) => {
+									console.log(
+										"[polar] Order paid:",
+										payload,
+									);
+								},
+								onCustomerStateChanged: async (
+									payload,
+								) => {
+									console.log(
+										"[polar] Customer state changed:",
+										payload,
+									);
+								},
+							}),
+						],
 					}),
 				]
 			: []),

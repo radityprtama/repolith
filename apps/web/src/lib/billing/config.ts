@@ -44,6 +44,16 @@ export const MIN_CAP_USD = 0.01;
 export const COST_TO_UNITS = 10_000;
 export const STRIPE_MAX_EVENT_AGE_DAYS = 35;
 
+// ── Polar ──
+
+/**
+ * Polar payment gateway configuration.
+ * Set POLAR_ACCESS_TOKEN, POLAR_WEBHOOK_SECRET, and POLAR_PRODUCT_ID
+ * environment variables to enable Polar as a payment gateway.
+ * Optionally set POLAR_SERVER=sandbox for testing.
+ */
+export const POLAR_ENABLED_ENV_KEY = "POLAR_ACCESS_TOKEN";
+
 // ── Subscription ──
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"] as const;

@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Key, AlertCircle, RotateCcw } from "lucide-react";
+import {
+	ExternalLink,
+	Key,
+	AlertCircle,
+	RotateCcw,
+	Zap,
+	CreditCard as CreditCardIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -14,6 +21,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import type { UserSettings } from "@/lib/user-settings-store";
+
+type PaymentGateway = "stripe" | "polar";
 
 interface BillingTabProps {
 	settings: UserSettings;
@@ -231,12 +240,40 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 
 	const hasByok = settings.useOwnApiKey && !!settings.openrouterApiKey;
 
+	const [gatewayDialogOpen, setGatewayDialogOpen] = useState(false);
+	const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>("polar");
+
 	async function handleSubscribe() {
 		const res = await authClient.subscription.upgrade({
 			plan: "base",
 			successUrl: window.location.href,
 			cancelUrl: window.location.href,
 		});
+		if (res.data?.url) {
+			window.location.href = res.data.url;
+		}
+	}
+
+	async function handlePolarCheckout() {
+		const res = await (authClient as any).polar.checkout({
+			productId: "base",
+		});
+		if (res.data?.url) {
+			window.location.href = res.data.url;
+		}
+	}
+
+	function handleGatewaySubscribe() {
+		setGatewayDialogOpen(false);
+		if (selectedGateway === "polar") {
+			handlePolarCheckout();
+		} else {
+			handleSubscribe();
+		}
+	}
+
+	async function handlePolarPortal() {
+		const res = await (authClient as any).polar.customerPortal();
 		if (res.data?.url) {
 			window.location.href = res.data.url;
 		}
@@ -303,11 +340,134 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 						</p>
 						<button
 							type="button"
-							onClick={handleSubscribe}
+							onClick={() => setGatewayDialogOpen(true)}
 							className="mt-2 flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
 						>
 							Subscribe
 						</button>
+
+						{/* Payment Gateway Selection Dialog */}
+						<Dialog
+							open={gatewayDialogOpen}
+							onOpenChange={setGatewayDialogOpen}
+						>
+							<DialogContent className="sm:max-w-sm">
+								<DialogHeader>
+									<DialogTitle className="text-sm font-mono">
+										Choose Payment
+										Method
+									</DialogTitle>
+									<DialogDescription className="text-xs font-mono">
+										Select your
+										preferred payment
+										gateway to
+										subscribe.
+									</DialogDescription>
+								</DialogHeader>
+								<div className="space-y-3 py-2">
+									<label className="flex items-center gap-2.5 cursor-pointer">
+										<span
+											className={cn(
+												"w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0",
+												selectedGateway ===
+													"polar"
+													? "border-foreground"
+													: "border-muted-foreground/30",
+											)}
+										>
+											{selectedGateway ===
+												"polar" && (
+												<span className="w-1.5 h-1.5 rounded-full bg-foreground" />
+											)}
+										</span>
+										<input
+											type="radio"
+											name="payment-gateway"
+											checked={
+												selectedGateway ===
+												"polar"
+											}
+											onChange={() =>
+												setSelectedGateway(
+													"polar",
+												)
+											}
+											className="sr-only"
+										/>
+										<span className="flex items-center gap-1.5 text-xs font-mono">
+											<Zap className="w-3 h-3" />
+											Polar
+											<span className="text-muted-foreground/50">
+												—
+												lower
+												fees,
+												global
+											</span>
+										</span>
+									</label>
+									<label className="flex items-center gap-2.5 cursor-pointer">
+										<span
+											className={cn(
+												"w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0",
+												selectedGateway ===
+													"stripe"
+													? "border-foreground"
+													: "border-muted-foreground/30",
+											)}
+										>
+											{selectedGateway ===
+												"stripe" && (
+												<span className="w-1.5 h-1.5 rounded-full bg-foreground" />
+											)}
+										</span>
+										<input
+											type="radio"
+											name="payment-gateway"
+											checked={
+												selectedGateway ===
+												"stripe"
+											}
+											onChange={() =>
+												setSelectedGateway(
+													"stripe",
+												)
+											}
+											className="sr-only"
+										/>
+										<span className="flex items-center gap-1.5 text-xs font-mono">
+											<CreditCardIcon className="w-3 h-3" />
+											Stripe
+											<span className="text-muted-foreground/50">
+												—
+												classic
+											</span>
+										</span>
+									</label>
+								</div>
+								<DialogFooter>
+									<button
+										type="button"
+										onClick={() =>
+											setGatewayDialogOpen(
+												false,
+											)
+										}
+										className="border border-border px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										onClick={
+											handleGatewaySubscribe
+										}
+										className="border border-border px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+									>
+										Continue
+									</button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
 					</>
 				)}
 			</div>
@@ -566,6 +726,19 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 					<button
 						type="button"
 						onClick={async () => {
+							// Try Polar portal first, fall back to Stripe
+							try {
+								const polarRes = await (
+									authClient as any
+								).polar.customerPortal();
+								if (polarRes.data?.url) {
+									window.location.href =
+										polarRes.data.url;
+									return;
+								}
+							} catch {
+								// Polar not available, try Stripe
+							}
 							const res =
 								await authClient.subscription.billingPortal(
 									{
