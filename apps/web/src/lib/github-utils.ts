@@ -109,6 +109,8 @@ export function toInternalUrl(htmlUrl: string): string {
 	if (!parsed) return htmlUrl;
 
 	if (parsed.type === "user") return `/users/${parsed.owner}`;
+	if (parsed.type === "stars")
+		return parsed.username ? `/stars/${parsed.username}` : "/stars";
 
 	const base = `/${parsed.owner}/${parsed.repo}`;
 
@@ -221,6 +223,10 @@ type ParsedGitHubUrl =
 	| {
 			owner: string;
 			type: "user";
+	  }
+	| {
+			type: "stars";
+			username?: string;
 	  };
 
 function parsePositiveInt(value: string | undefined): number | null {
@@ -237,6 +243,12 @@ export function parseGitHubUrl(htmlUrl: string): ParsedGitHubUrl | null {
 
 		const parts = url.pathname.split("/").filter(Boolean);
 		if (parts.length === 0) return null;
+
+		if (parts[0].toLowerCase() === "stars") {
+			if (parts.length === 1) return { type: "stars" };
+			if (parts.length === 2) return { type: "stars", username: parts[1] };
+			return null;
+		}
 
 		if (GITHUB_NON_USER_PATHS.has(parts[0].toLowerCase())) return null;
 
@@ -469,11 +481,7 @@ export function parseDiffPatch(patch: string): DiffLine[] {
 			}
 			raw.push({ type: "header", content: line });
 		} else if (line.startsWith("+")) {
-			raw.push({
-				type: "add",
-				content: line.slice(1),
-				newLineNumber: newLine,
-			});
+			raw.push({ type: "add", content: line.slice(1), newLineNumber: newLine });
 			newLine++;
 		} else if (line.startsWith("-")) {
 			raw.push({

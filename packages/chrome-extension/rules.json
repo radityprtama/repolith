@@ -264,9 +264,7 @@
 		"priority": 4,
 		"action": {
 			"type": "redirect",
-			"redirect": {
-				"regexSubstitution": "https://repolith.my.id/trending"
-			}
+			"redirect": { "regexSubstitution": "https://repolith.my.id/trending" }
 		},
 		"condition": {
 			"regexFilter": "^https://github\\.com/trending",
@@ -294,6 +292,32 @@
 		},
 		"condition": {
 			"regexFilter": "^https://github\\.com/pulls$",
+			"resourceTypes": ["main_frame"]
+		}
+	},
+	{
+		"id": 35,
+		"priority": 4,
+		"action": {
+			"type": "redirect",
+			"redirect": { "regexSubstitution": "https://repolith.my.id/stars" }
+		},
+		"condition": {
+			"regexFilter": "^https://github\\.com/stars/?(?:\\?.*)?$",
+			"resourceTypes": ["main_frame"]
+		}
+	},
+	{
+		"id": 36,
+		"priority": 4,
+		"action": {
+			"type": "redirect",
+			"redirect": {
+				"regexSubstitution": "https://repolith.my.id/stars/\\1"
+			}
+		},
+		"condition": {
+			"regexFilter": "^https://github\\.com/stars/([^/?#]+)/?(?:\\?.*)?$",
 			"resourceTypes": ["main_frame"]
 		}
 	}
