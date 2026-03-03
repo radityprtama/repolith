@@ -15,10 +15,20 @@ import {
 } from "@/components/ui/dialog";
 import type { UserSettings } from "@/lib/user-settings-store";
 
-type PaymentGateway = "stripe" | "polar";
+type BillingGateway = "stripe" | "polar";
 
 const PAYMENT_GATEWAY = (process.env.NEXT_PUBLIC_PAYMENT_GATEWAY ?? "stripe").toLowerCase();
-const ENV_PAYMENT_GATEWAY: PaymentGateway = PAYMENT_GATEWAY === "polar" ? "polar" : "stripe";
+const ENV_PAYMENT_GATEWAY: BillingGateway = PAYMENT_GATEWAY === "polar" ? "polar" : "stripe";
+
+interface BillingGatewayData {
+	activeGateway: BillingGateway | null;
+	linkedGateway: BillingGateway | null;
+	preferredGateway: BillingGateway | null;
+	available: {
+		stripe: boolean;
+		polar: boolean;
+	};
+}
 
 interface BillingTabProps {
 	settings: UserSettings;
@@ -80,6 +90,16 @@ async function patchSpendingLimit(value: number | null) {
 	return res.json();
 }
 
+async function fetchBillingGateway(): Promise<BillingGatewayData | null> {
+	try {
+		const res = await fetch("/api/billing/gateway");
+		if (!res.ok) return null;
+		return res.json();
+	} catch {
+		return null;
+	}
+}
+
 export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 	const {
 		data: balance,
@@ -107,9 +127,23 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 		refetchOnWindowFocus: "always",
 	});
 
+	const { data: gatewayInfo } = useQuery({
+		queryKey: ["billing-gateway"],
+		queryFn: fetchBillingGateway,
+		staleTime: 30_000,
+		gcTime: 5 * 60_000,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
+		retry: false,
+	});
+
+	const activeGateway: BillingGateway = gatewayInfo?.activeGateway ?? ENV_PAYMENT_GATEWAY;
+
 	const { data: subscriptions } = useQuery({
-		queryKey: ["billing-subscriptions"],
+		queryKey: ["billing-subscriptions", activeGateway],
+		enabled: activeGateway === "stripe",
 		queryFn: async () => {
+			if (activeGateway !== "stripe") return [];
 			try {
 				const res = await fetch("/api/auth/subscription/list");
 				if (!res.ok) return [];
@@ -268,10 +302,10 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 
 	async function handlePolarCheckout() {
 		try {
-			const res = await (authClient as any).polar.checkout({
-				productId: "base",
+			const res = await (authClient as any).checkout({
+				slug: "base",
 			});
-			if (res.data?.url) {
+			if (res?.data?.url) {
 				window.location.href = res.data.url;
 			}
 		} catch {
@@ -280,10 +314,12 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 	}
 
 	function handleGatewaySubscribe() {
-		if (ENV_PAYMENT_GATEWAY === "polar") {
+		if (activeGateway === "polar") {
 			handlePolarCheckout();
-		} else {
+		} else if (activeGateway === "stripe") {
 			handleSubscribe();
+		} else {
+			console.error("[billing] No billing gateway is enabled");
 		}
 	}
 
@@ -611,12 +647,12 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 					<button
 						type="button"
 						onClick={async () => {
-							if (ENV_PAYMENT_GATEWAY === "polar") {
+							if (activeGateway === "polar") {
 								try {
 									const res = await (
 										authClient as any
-									).polar.customerPortal();
-									if (res.data?.url) {
+									).customer.portal();
+									if (res?.data?.url) {
 										window.location.href =
 											res.data.url;
 									}
