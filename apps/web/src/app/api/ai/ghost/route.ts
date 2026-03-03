@@ -36,8 +36,8 @@ export const maxDuration = 300;
 // ─── Model Config ───────────────────────────────────────────────────────────
 // Central config for "auto" mode. Swap models here — no other changes needed.
 const GHOST_MODELS = {
-	default: process.env.GHOST_MODEL || "moonshotai/kimi-k2.5",
-	mergeConflict: process.env.GHOST_MERGE_MODEL || "google/gemini-2.5-pro-preview",
+	default: process.env.GHOST_MODEL || "qwen/qwen3.5-397b-a17b",
+	mergeConflict: process.env.GHOST_MERGE_MODEL || "qwen/qwen3.5-397b-a17b",
 } as const;
 
 type GhostTaskType = "default" | "mergeConflict";
