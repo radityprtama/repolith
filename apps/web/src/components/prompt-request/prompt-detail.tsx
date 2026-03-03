@@ -57,7 +57,12 @@ interface PromptDetailProps {
 	promptRequest: PromptRequest;
 	comments: PromptRequestComment[];
 	reactions: PromptRequestReaction[];
-	currentUser: { id: string; login: string | null; name: string; image: string } | null;
+	currentUser: {
+		id: string;
+		login: string | null;
+		name: string;
+		image: string;
+	} | null;
 	canManage: boolean;
 	isMaintainer: boolean;
 }
@@ -295,7 +300,7 @@ export function PromptDetail({
 								<button
 									onClick={handleRunWithGhost}
 									disabled={isAccepting}
-									className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium bg-foreground text-background rounded-sm hover:bg-foreground/90 transition-colors cursor-pointer disabled:opacity-50"
+									className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium bg-primary text-background rounded-sm hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50"
 								>
 									{isAccepting ? (
 										<Loader2 className="w-3 h-3 animate-spin" />
@@ -310,7 +315,7 @@ export function PromptDetail({
 									}
 									disabled={isAccepting}
 									className={cn(
-										"flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-all cursor-pointer disabled:opacity-50",
+										"flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-sm border transition-all cursor-pointer disabled:opacity-50",
 										copied
 											? "bg-green-500/15 text-green-400 border-green-500/20"
 											: "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
