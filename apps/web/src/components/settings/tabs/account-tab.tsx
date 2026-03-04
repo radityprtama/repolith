@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
 	LogOut,
 	Trash2,
 	Github,
 	Shield,
-	Check,
-	Lock,
-	Info,
 	ExternalLink,
 	MapPin,
 	Building2,
@@ -20,7 +17,7 @@ import { signIn, signOut } from "@/lib/auth-client";
 import { SCOPE_GROUPS, scopesToGroupIds } from "@/lib/github-scopes";
 import type { UserSettings } from "@/lib/user-settings-store";
 import type { GitHubProfile } from "../settings-dialog";
-
+import { PermissionBadge } from "@/components/shared/permission-badge";
 interface AccountTabProps {
 	user: {
 		name: string;
@@ -30,34 +27,6 @@ interface AccountTabProps {
 	settings: UserSettings;
 	onUpdate: (updates: Partial<UserSettings>) => Promise<void>;
 	githubProfile: GitHubProfile;
-}
-
-function InfoPopover({ text, children }: { text: string; children: React.ReactNode }) {
-	const [open, setOpen] = useState(false);
-	const timeout = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-	const show = useCallback(() => {
-		clearTimeout(timeout.current);
-		setOpen(true);
-	}, []);
-
-	const hide = useCallback(() => {
-		timeout.current = setTimeout(() => setOpen(false), 150);
-	}, []);
-
-	useEffect(() => () => clearTimeout(timeout.current), []);
-
-	return (
-		<div className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
-			{children}
-			{open && (
-				<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 rounded-md bg-foreground text-background text-[11px] leading-relaxed shadow-lg z-50 pointer-events-none">
-					{text}
-					<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-foreground" />
-				</div>
-			)}
-		</div>
-	);
 }
 
 function formatCount(n: number): string {
@@ -270,7 +239,7 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 					GitHub Permissions
 				</label>
 				<p className="mt-1 text-[10px] text-muted-foreground/50 font-mono">
-					Manage which GitHub permissions are granted to Repolith.
+					Manage which GitHub permissions are granted to Better Hub.
 					Toggle scopes and click update to re-authorize.
 				</p>
 
@@ -326,74 +295,19 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 				) : (
 					<>
 						<div className="flex flex-wrap gap-1.5 mt-3">
-							{SCOPE_GROUPS.map((group) => {
-								const isGranted =
-									grantedGroupIds.has(
+							{SCOPE_GROUPS.map((group) => (
+								<PermissionBadge
+									key={group.id}
+									group={group}
+									isSelected={selected.has(
 										group.id,
-									);
-								const isOn = selected.has(group.id);
-								return (
-									<span
-										key={group.id}
-										className={cn(
-											"inline-flex items-stretch rounded-full border text-[12px] transition-colors",
-											isOn
-												? "border-foreground/30 bg-foreground/10 text-foreground"
-												: "border-foreground/10 text-foreground/40",
-										)}
-									>
-										<button
-											type="button"
-											onClick={() =>
-												toggle(
-													group.id,
-												)
-											}
-											disabled={
-												group.required
-											}
-											className={cn(
-												"inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 transition-colors",
-												!isOn &&
-													"line-through decoration-foreground/20",
-												group.required
-													? "cursor-default"
-													: "cursor-pointer hover:text-foreground/70",
-											)}
-										>
-											{isOn &&
-												(group.required ? (
-													<Lock className="w-2.5 h-2.5 shrink-0" />
-												) : (
-													<Check className="w-2.5 h-2.5 shrink-0" />
-												))}
-											{
-												group.label
-											}
-											{isGranted &&
-												isOn && (
-													<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-												)}
-										</button>
-										<InfoPopover
-											text={
-												group.reason
-											}
-										>
-											<span
-												className={cn(
-													"inline-flex items-center pr-2 pl-1 border-l transition-colors",
-													isOn
-														? "border-foreground/15 text-foreground/30 hover:text-foreground/60"
-														: "border-foreground/10 text-foreground/20 hover:text-foreground/50",
-												)}
-											>
-												<Info className="w-3 h-3" />
-											</span>
-										</InfoPopover>
-									</span>
-								);
-							})}
+									)}
+									isGranted={grantedGroupIds.has(
+										group.id,
+									)}
+									onToggle={toggle}
+								/>
+							))}
 						</div>
 
 						<div className="flex items-center gap-3 mt-3">
