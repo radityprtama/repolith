@@ -42,8 +42,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 	if (!onboardingDone) {
 		try {
 			[initialStarredAuth, initialStarredHub] = await Promise.all([
-				checkIsStarred("better-auth", "better-auth"),
-				checkIsStarred("better-auth", "repolith"),
+				checkIsStarred("repolith", "repolith"),
+				checkIsStarred("repolith", "repolith"),
 			]);
 		} catch {
 			// Swallow errors so the onboarding can still render, just with unstarred state.

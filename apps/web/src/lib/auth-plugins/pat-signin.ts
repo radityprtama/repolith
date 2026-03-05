@@ -85,7 +85,9 @@ export const patSignIn = (): BetterAuthPlugin => ({
 					if (existing.linkedAccount) {
 						await internalAdapter.updateAccount(
 							existing.linkedAccount.id,
-							{ accessToken: encryptedPat },
+							{
+								accessToken: encryptedPat,
+							},
 						);
 					}
 				} else {
@@ -109,7 +111,7 @@ export const patSignIn = (): BetterAuthPlugin => ({
 					} as Record<string, unknown>);
 				}
 
-				// --- Create session + set cookie via Better Auth ---
+				// --- Create session + set cookie via Repolith ---
 				const session = await internalAdapter.createSession(userId, false);
 				const user =
 					existing?.user ??

@@ -1,10 +1,9 @@
 import type { ThemeColors, ThemeDefinition, ThemeVariant, ShikiTheme } from "./types";
 import {
 	arctic,
-	cloudflare,
+	kalt,
 	ember,
 	forest,
-	KaltThemes,
 	mintlify,
 	noir,
 	nordWave,
@@ -16,14 +15,14 @@ import {
 	vesper,
 	zinc,
 	catppuccin,
+	github,
 	rosePine,
 	LEGACY_THEME_MAP,
 } from "./themes";
 
 const themes: ThemeDefinition[] = [
-	KaltThemes,
 	vercel,
-	cloudflare,
+	kalt,
 	supabase,
 	tailwind,
 	mintlify,
@@ -37,6 +36,7 @@ const themes: ThemeDefinition[] = [
 	noir,
 	forest,
 	catppuccin,
+	github,
 	rosePine,
 ];
 
@@ -73,7 +73,7 @@ export function applyTheme(themeId: string, mode: "dark" | "light"): void {
 	const theme = getTheme(themeId);
 	const variant = theme?.[mode];
 
-	const hubDark = KaltThemes.dark;
+	const hubDark = kalt.dark;
 	const allKeys = Object.keys(hubDark.colors) as (keyof ThemeColors)[];
 
 	if (!variant || (themeId === DEFAULT_THEME_ID && mode === DEFAULT_MODE)) {

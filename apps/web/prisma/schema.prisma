@@ -197,7 +197,7 @@ model UserSettings {
   userId           String  @id
   displayName      String?
   theme            String  @default("system")
-  colorTheme       String  @default("better-auth")
+  colorTheme       String  @default("kalt")
   colorMode        String  @default("dark")
   ghostModel       String  @default("auto")
   useOwnApiKey     Boolean @default(false)

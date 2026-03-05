@@ -19,8 +19,8 @@ export function generateThemeScript(themes: ThemeDefinition[]): string {
 	}
 
 	const legacyMap: Record<string, { themeId: string; mode: string }> = {
-		midnight: { themeId: "better-auth", mode: "dark" },
-		"hub-light": { themeId: "better-auth", mode: "light" },
+		midnight: { themeId: "kalt", mode: "dark" },
+		"hub-light": { themeId: "kalt", mode: "light" },
 		"hub-dark": { themeId: "zinc", mode: "dark" },
 		dawn: { themeId: "ember", mode: "light" },
 	};
