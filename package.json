@@ -1,7 +1,7 @@
 {
 	"name": "@repolith/monorepo",
 	"private": true,
-	"description": "A better place to collaborate on code — for humans and agents",
+	"description": "",
 	"keywords": [
 		"ai-assistant",
 		"better-auth",
@@ -36,6 +36,10 @@
 		"check": "bun lint && bun fmt:check && bun typecheck",
 		"fix": "bun lint:fix && bun fmt",
 		"prepare": "simple-git-hooks"
+	},
+	"dependencies": {
+		"@polar-sh/better-auth": "^1.8.2",
+		"@polar-sh/sdk": "^0.46.1"
 	},
 	"devDependencies": {
 		"@types/node": "^25.3.0",
