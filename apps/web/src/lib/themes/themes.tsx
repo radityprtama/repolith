@@ -28,8 +28,12 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			"editor.foreground": foreground,
 			"editor.background": "#000000",
 			...(highlight && { "editor.lineHighlightBackground": highlight }),
-			...(highlightBorder && { "editor.lineHighlightBorder": highlightBorder }),
-			...(diffDeleted && { "diffEditor.removedTextBackground": diffDeleted }),
+			...(highlightBorder && {
+				"editor.lineHighlightBorder": highlightBorder,
+			}),
+			...(diffDeleted && {
+				"diffEditor.removedTextBackground": diffDeleted,
+			}),
 			...(diffInserted && {
 				"diffEditor.insertedTextBackground": diffInserted,
 			}),
@@ -45,7 +49,9 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			},
 			{
 				scope: ["string.template", "string.interpolated"],
-				settings: { foreground: stringExpression ?? string ?? foreground },
+				settings: {
+					foreground: stringExpression ?? string ?? foreground,
+				},
 			},
 			{
 				scope: ["constant", "constant.numeric", "constant.language"],
@@ -81,203 +87,179 @@ function convertToShikiTheme(input: ShikiThemeInput, mode: "light" | "dark" = "d
 			},
 			{
 				scope: ["meta.objectliteral", "meta.object-literal.key"],
-				settings: { foreground: objectLiteral ?? property ?? foreground },
+				settings: {
+					foreground: objectLiteral ?? property ?? foreground,
+				},
 			},
 		],
 	};
 }
 
-// Kalt Theme
-export const kalt: ThemeDefinition = {
+// Hub theme: midnight (dark) + hubLight (light)
+export const KaltThemes: ThemeDefinition = {
 	id: "kalt",
-	name: "Kalt",
-	description: "Kalt theme",
+	name: "Kalt Labs",
+	description: "The Kalt Labs theme",
 	icon: () => (
 		<svg
-			viewBox="0 0 256 116"
-			xmlns="http://www.w3.org/2000/svg"
 			className="w-4"
-			preserveAspectRatio="xMidYMid"
+			viewBox="0 0 361 259"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
 		>
-			<path
-				fill="#FFF"
-				d="m202.357 49.394-5.311-2.124C172.085 103.434 72.786 69.289 66.81 85.997c-.996 11.286 54.227 2.146 93.706 4.059 12.039.583 18.076 9.671 12.964 24.484l10.069.031c11.615-36.209 48.683-17.73 50.232-29.68-2.545-7.857-42.601 0-31.425-35.497Z"
+			<rect width="86.9879" height="259" className="fill-black dark:fill-white" />
+			<rect
+				x="268.575"
+				width="92.4247"
+				height="259"
+				className="fill-black dark:fill-white"
 			/>
-			<path
-				fill="#F4811F"
-				d="M176.332 108.348c1.593-5.31 1.062-10.622-1.593-13.809-2.656-3.187-6.374-5.31-11.154-5.842L71.17 87.634c-.531 0-1.062-.53-1.593-.53-.531-.532-.531-1.063 0-1.594.531-1.062 1.062-1.594 2.124-1.594l92.946-1.062c11.154-.53 22.839-9.56 27.087-20.182l5.312-13.809c0-.532.531-1.063 0-1.594C191.203 20.182 166.772 0 138.091 0 111.535 0 88.697 16.995 80.73 40.896c-5.311-3.718-11.684-5.843-19.12-5.31-12.747 1.061-22.838 11.683-24.432 24.43-.531 3.187 0 6.374.532 9.56C16.996 70.107 0 87.103 0 108.348c0 2.124 0 3.718.531 5.842 0 1.063 1.062 1.594 1.594 1.594h170.489c1.062 0 2.125-.53 2.125-1.594l1.593-5.842Z"
+			<rect
+				x="358.281"
+				width="83.4555"
+				height="174.52"
+				transform="rotate(90 358.281 0)"
+				className="fill-black dark:fill-white"
 			/>
-			<path
-				fill="#FAAD3F"
-				d="M205.544 48.863h-2.656c-.531 0-1.062.53-1.593 1.062l-3.718 12.747c-1.593 5.31-1.062 10.623 1.594 13.809 2.655 3.187 6.373 5.31 11.153 5.843l19.652 1.062c.53 0 1.062.53 1.593.53.53.532.53 1.063 0 1.594-.531 1.063-1.062 1.594-2.125 1.594l-20.182 1.062c-11.154.53-22.838 9.56-27.087 20.182l-1.063 4.78c-.531.532 0 1.594 1.063 1.594h70.108c1.062 0 1.593-.531 1.593-1.593 1.062-4.25 2.124-9.03 2.124-13.81 0-27.618-22.838-50.456-50.456-50.456"
+			<rect
+				x="361"
+				y="175.544"
+				width="83.4555"
+				height="177.238"
+				transform="rotate(90 361 175.544)"
+				className="fill-black dark:fill-white"
+			/>
+			<rect
+				x="183.762"
+				y="83.4553"
+				width="92.0888"
+				height="96.7741"
+				transform="rotate(90 183.762 83.4553)"
+				className="fill-black dark:fill-white"
 			/>
 		</svg>
 	),
 	dark: {
-		accentPreview: "#F6821F",
-		bgPreview: "#181818",
+		accentPreview: "#71717a",
+		bgPreview: "#030304",
 		colors: {
-			"--background": "#181818",
-			"--foreground": "#D9D9D9",
-			"--card": "#252525",
-			"--card-foreground": "#D9D9D9",
-			"--primary": "#F6821F",
-			"--primary-foreground": "#1B1B1B",
-			"--secondary": "#2D2D2D",
-			"--secondary-foreground": "#D9D9D9",
-			"--muted": "#2D2D2D",
-			"--muted-foreground": "#808080",
-			"--accent": "#2D2D2D",
-			"--accent-foreground": "#F6821F",
-			"--border": "#404040",
-			"--input": "#404040",
-			"--ring": "#F6821F",
-			"--destructive": "#E04E4E",
-			"--success": "#6CBB5A",
-			"--warning": "#F6821F",
-			"--scrollbar-thumb": "#404040",
-			"--scrollbar-thumb-hover": "#555555",
-			"--shader-bg": "#181818",
+			"--background": "#030304",
+			"--foreground": "#fafafa",
+			"--card": "#111113",
+			"--card-foreground": "#fafafa",
+			"--primary": "#F97316",
+			"--primary-foreground": "#ffffff",
+			"--secondary": "#1a1a1e",
+			"--secondary-foreground": "#fafafa",
+			"--muted": "#1a1a1e",
+			"--muted-foreground": "#a1a1aa",
+			"--accent": "#1a1a1e",
+			"--accent-foreground": "#fafafa",
+			"--border": "#27272a",
+			"--input": "#27272a",
+			"--ring": "#F97316",
+			"--destructive": "oklch(0.704 0.191 22.216)",
+			"--success": "oklch(0.627 0.194 149.214)",
+			"--warning": "oklch(0.769 0.188 70.08)",
+			"--scrollbar-thumb": "#3f3f46",
+			"--scrollbar-thumb-hover": "#52525b",
+			"--shader-bg": "#09090b",
 			"--shader-filter": "none",
-			"--hero-border": "#404040",
-			"--diff-add-bar": "#6CBB5A",
-			"--diff-del-bar": "#E04E4E",
-			"--diff-mod-bar": "#F6821F",
-			"--link": "#F6821F",
-			"--info": "#F6821F",
-			"--code-bg": "#181818",
-			"--code-block-bg": "#313131",
-			"--inline-code-bg": "rgba(246, 130, 31, 0.12)",
-			"--line-gutter": "#606060",
-			"--line-highlight": "rgba(246, 130, 31, 0.12)",
-			"--search-highlight": "rgba(246, 130, 31, 0.20)",
-			"--search-highlight-active": "rgba(246, 130, 31, 0.35)",
-			"--selection-bg": "rgba(246, 130, 31, 0.20)",
-			"--table-row-alt": "#252525",
-			"--diff-add-bg": "rgba(108, 187, 90, 0.12)",
-			"--diff-del-bg": "rgba(224, 78, 78, 0.12)",
-			"--diff-add-text": "#6CBB5A",
-			"--diff-del-text": "#E04E4E",
-			"--diff-add-gutter": "rgba(108, 187, 90, 0.10)",
-			"--diff-del-gutter": "rgba(224, 78, 78, 0.10)",
-			"--diff-word-add": "rgba(108, 187, 90, 0.25)",
-			"--diff-word-del": "rgba(224, 78, 78, 0.25)",
-			"--alert-note": "#F6821F",
-			"--alert-tip": "#6CBB5A",
-			"--alert-important": "#F6821F",
-			"--alert-warning": "#F6821F",
-			"--alert-caution": "#E04E4E",
-			"--contrib-0": "#2D2D2D",
-			"--contrib-1": "#7A4510",
-			"--contrib-2": "#B46015",
-			"--contrib-3": "#E0751A",
-			"--contrib-4": "#F6821F",
+			"--hero-border": "#27272a",
+			"--diff-add-bar": "#34d399",
+			"--diff-del-bar": "#f87171",
+			"--diff-mod-bar": "#fbbf24",
+			"--link": "#58a6ff",
+			"--info": "#58a6ff",
+			"--code-bg": "#09090b",
+			"--code-block-bg": "#111113",
+			"--inline-code-bg": "rgba(63, 63, 70, 0.5)",
+			"--line-gutter": "#3f3f46",
+			"--line-highlight": "rgba(59, 130, 246, 0.12)",
+			"--search-highlight": "rgba(234, 179, 8, 0.10)",
+			"--search-highlight-active": "rgba(234, 179, 8, 0.22)",
+			"--selection-bg": "oklch(0.7 0.1 285 / 20%)",
+			"--table-row-alt": "#111113",
+			"--diff-add-bg": "rgba(52, 211, 153, 0.09)",
+			"--diff-del-bg": "rgba(248, 113, 113, 0.11)",
+			"--diff-add-text": "#6ee7b7",
+			"--diff-del-text": "#fca5a5",
+			"--diff-add-gutter": "rgba(52, 211, 153, 0.08)",
+			"--diff-del-gutter": "rgba(248, 113, 113, 0.10)",
+			"--diff-word-add": "rgba(52, 211, 153, 0.20)",
+			"--diff-word-del": "rgba(248, 113, 113, 0.20)",
+			"--alert-note": "#2f81f7",
+			"--alert-tip": "#3fb950",
+			"--alert-important": "#a371f7",
+			"--alert-warning": "#d29922",
+			"--alert-caution": "#f85149",
+			"--contrib-0": "#161b22",
+			"--contrib-1": "#0e4429",
+			"--contrib-2": "#006d32",
+			"--contrib-3": "#26a641",
+			"--contrib-4": "#39d353",
 		},
-		syntax: convertToShikiTheme(
-			{
-				foreground: "#D9D9D9",
-				constant: "#D9D9D9",
-				string: "#6CBB5A",
-				comment: "#808080",
-				keyword: "#F6821F",
-				parameter: "#D9D9D9",
-				function: "#D9D9D9",
-				stringExpression: "#6CBB5A",
-				punctuation: "#808080",
-				link: "#F6821F",
-				number: "#F6821F",
-				property: "#D9D9D9",
-				highlight: "rgba(246, 130, 31, 0.12)",
-				highlightHover: "rgba(246, 130, 31, 0.08)",
-				highlightBorder: "#F6821F",
-				diffInserted: "#6CBB5A",
-				diffDeleted: "#E04E4E",
-			},
-			"dark",
-		),
 	},
 	light: {
-		accentPreview: "#F6821F",
-		bgPreview: "#FFFFFF",
+		accentPreview: "#71717a",
+		bgPreview: "#ffffff",
 		colors: {
-			"--background": "#FFFFFF",
-			"--foreground": "#1B1B1B",
-			"--card": "#F9F9F9",
-			"--card-foreground": "#1B1B1B",
-			"--primary": "#F6821F",
-			"--primary-foreground": "#FFFFFF",
-			"--secondary": "#F3F3F3",
-			"--secondary-foreground": "#1B1B1B",
-			"--muted": "#F3F3F3",
-			"--muted-foreground": "#666666",
-			"--accent": "#FFF7F0",
-			"--accent-foreground": "#F6821F",
-			"--border": "#E5E5E5",
-			"--input": "#E5E5E5",
-			"--ring": "#F6821F",
-			"--destructive": "#E04E4E",
-			"--success": "#5AA348",
-			"--warning": "#F6821F",
-			"--scrollbar-thumb": "#D5D5D5",
-			"--scrollbar-thumb-hover": "#AAAAAA",
-			"--shader-bg": "#FFFFFF",
+			"--background": "#ffffff",
+			"--foreground": "#18181b",
+			"--card": "#f9f9f9",
+			"--card-foreground": "#18181b",
+			"--primary": "#F97316",
+			"--primary-foreground": "#ffffff",
+			"--secondary": "#f4f4f5",
+			"--secondary-foreground": "#18181b",
+			"--muted": "#f4f4f5",
+			"--muted-foreground": "#71717a",
+			"--accent": "#f0f0f1",
+			"--accent-foreground": "#18181b",
+			"--border": "#e4e4e7",
+			"--input": "#e4e4e7",
+			"--ring": "#F97316",
+			"--destructive": "#dc2626",
+			"--success": "#16a34a",
+			"--warning": "#ca8a04",
+			"--scrollbar-thumb": "#d4d4d8",
+			"--scrollbar-thumb-hover": "#a1a1aa",
+			"--shader-bg": "#ffffff",
 			"--shader-filter": "invert(1) contrast(1.4)",
-			"--hero-border": "rgba(27, 27, 27, 0.08)",
-			"--diff-add-bar": "#5AA348",
-			"--diff-del-bar": "#E04E4E",
-			"--diff-mod-bar": "#F6821F",
-			"--link": "#F6821F",
-			"--info": "#F6821F",
-			"--code-bg": "#F9F9F9",
-			"--code-block-bg": "#F3F3F3",
-			"--inline-code-bg": "rgba(246, 130, 31, 0.08)",
-			"--line-gutter": "#999999",
-			"--line-highlight": "rgba(246, 130, 31, 0.08)",
-			"--search-highlight": "rgba(246, 130, 31, 0.15)",
-			"--search-highlight-active": "rgba(246, 130, 31, 0.25)",
-			"--selection-bg": "rgba(246, 130, 31, 0.15)",
-			"--table-row-alt": "#F9F9F9",
-			"--diff-add-bg": "rgba(90, 163, 72, 0.10)",
-			"--diff-del-bg": "rgba(224, 78, 78, 0.10)",
-			"--diff-add-text": "#468538",
-			"--diff-del-text": "#E04E4E",
-			"--diff-add-gutter": "rgba(90, 163, 72, 0.08)",
-			"--diff-del-gutter": "rgba(224, 78, 78, 0.08)",
-			"--diff-word-add": "rgba(90, 163, 72, 0.18)",
-			"--diff-word-del": "rgba(224, 78, 78, 0.18)",
-			"--alert-note": "#F6821F",
-			"--alert-tip": "#5AA348",
-			"--alert-important": "#F6821F",
-			"--alert-warning": "#F6821F",
-			"--alert-caution": "#E04E4E",
-			"--contrib-0": "#F3F3F3",
-			"--contrib-1": "#FDD9B8",
-			"--contrib-2": "#FAAF6B",
-			"--contrib-3": "#F89640",
-			"--contrib-4": "#F6821F",
+			"--hero-border": "rgba(24, 24, 27, 0.08)",
+			"--diff-add-bar": "#16a34a",
+			"--diff-del-bar": "#dc2626",
+			"--diff-mod-bar": "#ca8a04",
+			"--link": "#2563eb",
+			"--info": "#2563eb",
+			"--code-bg": "#ffffff",
+			"--code-block-bg": "#f4f4f5",
+			"--inline-code-bg": "rgba(0, 0, 0, 0.05)",
+			"--line-gutter": "#a1a1aa",
+			"--line-highlight": "rgba(59, 130, 246, 0.07)",
+			"--search-highlight": "rgba(234, 179, 8, 0.12)",
+			"--search-highlight-active": "rgba(234, 179, 8, 0.25)",
+			"--selection-bg": "rgba(59, 130, 246, 0.18)",
+			"--table-row-alt": "#f9f9f9",
+			"--diff-add-bg": "rgba(22, 163, 74, 0.07)",
+			"--diff-del-bg": "rgba(220, 38, 38, 0.07)",
+			"--diff-add-text": "#15803d",
+			"--diff-del-text": "#dc2626",
+			"--diff-add-gutter": "rgba(22, 163, 74, 0.05)",
+			"--diff-del-gutter": "rgba(220, 38, 38, 0.05)",
+			"--diff-word-add": "rgba(22, 163, 74, 0.15)",
+			"--diff-word-del": "rgba(220, 38, 38, 0.15)",
+			"--alert-note": "#2563eb",
+			"--alert-tip": "#16a34a",
+			"--alert-important": "#7c3aed",
+			"--alert-warning": "#ca8a04",
+			"--alert-caution": "#dc2626",
+			"--contrib-0": "#ebedf0",
+			"--contrib-1": "#9be9a8",
+			"--contrib-2": "#40c463",
+			"--contrib-3": "#30a14e",
+			"--contrib-4": "#216e39",
 		},
-		syntax: convertToShikiTheme(
-			{
-				foreground: "#1B1B1B",
-				constant: "#1B1B1B",
-				string: "#468538",
-				comment: "#808080",
-				keyword: "#F6821F",
-				parameter: "#1B1B1B",
-				function: "#1B1B1B",
-				stringExpression: "#468538",
-				punctuation: "#808080",
-				link: "#F6821F",
-				number: "#F6821F",
-				property: "#1B1B1B",
-				highlight: "rgba(246, 130, 31, 0.08)",
-				highlightHover: "rgba(246, 130, 31, 0.05)",
-				highlightBorder: "#F6821F",
-				diffInserted: "#5AA348",
-				diffDeleted: "#E04E4E",
-			},
-			"light",
-		),
 	},
 };
 
@@ -2776,6 +2758,200 @@ export const browserbase: ThemeDefinition = {
 	},
 };
 */
+
+// Cloudflare theme: Edge computing platform
+export const cloudflare: ThemeDefinition = {
+	id: "cloudflare",
+	name: "Cloudflare",
+	description: "Cloudflare theme",
+	icon: () => (
+		<svg
+			viewBox="0 0 256 116"
+			xmlns="http://www.w3.org/2000/svg"
+			className="w-4"
+			preserveAspectRatio="xMidYMid"
+		>
+			<path
+				fill="#FFF"
+				d="m202.357 49.394-5.311-2.124C172.085 103.434 72.786 69.289 66.81 85.997c-.996 11.286 54.227 2.146 93.706 4.059 12.039.583 18.076 9.671 12.964 24.484l10.069.031c11.615-36.209 48.683-17.73 50.232-29.68-2.545-7.857-42.601 0-31.425-35.497Z"
+			/>
+			<path
+				fill="#F4811F"
+				d="M176.332 108.348c1.593-5.31 1.062-10.622-1.593-13.809-2.656-3.187-6.374-5.31-11.154-5.842L71.17 87.634c-.531 0-1.062-.53-1.593-.53-.531-.532-.531-1.063 0-1.594.531-1.062 1.062-1.594 2.124-1.594l92.946-1.062c11.154-.53 22.839-9.56 27.087-20.182l5.312-13.809c0-.532.531-1.063 0-1.594C191.203 20.182 166.772 0 138.091 0 111.535 0 88.697 16.995 80.73 40.896c-5.311-3.718-11.684-5.843-19.12-5.31-12.747 1.061-22.838 11.683-24.432 24.43-.531 3.187 0 6.374.532 9.56C16.996 70.107 0 87.103 0 108.348c0 2.124 0 3.718.531 5.842 0 1.063 1.062 1.594 1.594 1.594h170.489c1.062 0 2.125-.53 2.125-1.594l1.593-5.842Z"
+			/>
+			<path
+				fill="#FAAD3F"
+				d="M205.544 48.863h-2.656c-.531 0-1.062.53-1.593 1.062l-3.718 12.747c-1.593 5.31-1.062 10.623 1.594 13.809 2.655 3.187 6.373 5.31 11.153 5.843l19.652 1.062c.53 0 1.062.53 1.593.53.53.532.53 1.063 0 1.594-.531 1.063-1.062 1.594-2.125 1.594l-20.182 1.062c-11.154.53-22.838 9.56-27.087 20.182l-1.063 4.78c-.531.532 0 1.594 1.063 1.594h70.108c1.062 0 1.593-.531 1.593-1.593 1.062-4.25 2.124-9.03 2.124-13.81 0-27.618-22.838-50.456-50.456-50.456"
+			/>
+		</svg>
+	),
+	dark: {
+		accentPreview: "#F6821F",
+		bgPreview: "#181818",
+		colors: {
+			"--background": "#181818",
+			"--foreground": "#D9D9D9",
+			"--card": "#252525",
+			"--card-foreground": "#D9D9D9",
+			"--primary": "#F6821F",
+			"--primary-foreground": "#1B1B1B",
+			"--secondary": "#2D2D2D",
+			"--secondary-foreground": "#D9D9D9",
+			"--muted": "#2D2D2D",
+			"--muted-foreground": "#808080",
+			"--accent": "#2D2D2D",
+			"--accent-foreground": "#F6821F",
+			"--border": "#404040",
+			"--input": "#404040",
+			"--ring": "#F6821F",
+			"--destructive": "#E04E4E",
+			"--success": "#6CBB5A",
+			"--warning": "#F6821F",
+			"--scrollbar-thumb": "#404040",
+			"--scrollbar-thumb-hover": "#555555",
+			"--shader-bg": "#181818",
+			"--shader-filter": "none",
+			"--hero-border": "#404040",
+			"--diff-add-bar": "#6CBB5A",
+			"--diff-del-bar": "#E04E4E",
+			"--diff-mod-bar": "#F6821F",
+			"--link": "#F6821F",
+			"--info": "#F6821F",
+			"--code-bg": "#181818",
+			"--code-block-bg": "#313131",
+			"--inline-code-bg": "rgba(246, 130, 31, 0.12)",
+			"--line-gutter": "#606060",
+			"--line-highlight": "rgba(246, 130, 31, 0.12)",
+			"--search-highlight": "rgba(246, 130, 31, 0.20)",
+			"--search-highlight-active": "rgba(246, 130, 31, 0.35)",
+			"--selection-bg": "rgba(246, 130, 31, 0.20)",
+			"--table-row-alt": "#252525",
+			"--diff-add-bg": "rgba(108, 187, 90, 0.12)",
+			"--diff-del-bg": "rgba(224, 78, 78, 0.12)",
+			"--diff-add-text": "#6CBB5A",
+			"--diff-del-text": "#E04E4E",
+			"--diff-add-gutter": "rgba(108, 187, 90, 0.10)",
+			"--diff-del-gutter": "rgba(224, 78, 78, 0.10)",
+			"--diff-word-add": "rgba(108, 187, 90, 0.25)",
+			"--diff-word-del": "rgba(224, 78, 78, 0.25)",
+			"--alert-note": "#F6821F",
+			"--alert-tip": "#6CBB5A",
+			"--alert-important": "#F6821F",
+			"--alert-warning": "#F6821F",
+			"--alert-caution": "#E04E4E",
+			"--contrib-0": "#2D2D2D",
+			"--contrib-1": "#7A4510",
+			"--contrib-2": "#B46015",
+			"--contrib-3": "#E0751A",
+			"--contrib-4": "#F6821F",
+		},
+		syntax: convertToShikiTheme(
+			{
+				foreground: "#D9D9D9",
+				constant: "#D9D9D9",
+				string: "#6CBB5A",
+				comment: "#808080",
+				keyword: "#F6821F",
+				parameter: "#D9D9D9",
+				function: "#D9D9D9",
+				stringExpression: "#6CBB5A",
+				punctuation: "#808080",
+				link: "#F6821F",
+				number: "#F6821F",
+				property: "#D9D9D9",
+				highlight: "rgba(246, 130, 31, 0.12)",
+				highlightHover: "rgba(246, 130, 31, 0.08)",
+				highlightBorder: "#F6821F",
+				diffInserted: "#6CBB5A",
+				diffDeleted: "#E04E4E",
+			},
+			"dark",
+		),
+	},
+	light: {
+		accentPreview: "#F6821F",
+		bgPreview: "#FFFFFF",
+		colors: {
+			"--background": "#FFFFFF",
+			"--foreground": "#1B1B1B",
+			"--card": "#F9F9F9",
+			"--card-foreground": "#1B1B1B",
+			"--primary": "#F6821F",
+			"--primary-foreground": "#FFFFFF",
+			"--secondary": "#F3F3F3",
+			"--secondary-foreground": "#1B1B1B",
+			"--muted": "#F3F3F3",
+			"--muted-foreground": "#666666",
+			"--accent": "#FFF7F0",
+			"--accent-foreground": "#F6821F",
+			"--border": "#E5E5E5",
+			"--input": "#E5E5E5",
+			"--ring": "#F6821F",
+			"--destructive": "#E04E4E",
+			"--success": "#5AA348",
+			"--warning": "#F6821F",
+			"--scrollbar-thumb": "#D5D5D5",
+			"--scrollbar-thumb-hover": "#AAAAAA",
+			"--shader-bg": "#FFFFFF",
+			"--shader-filter": "invert(1) contrast(1.4)",
+			"--hero-border": "rgba(27, 27, 27, 0.08)",
+			"--diff-add-bar": "#5AA348",
+			"--diff-del-bar": "#E04E4E",
+			"--diff-mod-bar": "#F6821F",
+			"--link": "#F6821F",
+			"--info": "#F6821F",
+			"--code-bg": "#F9F9F9",
+			"--code-block-bg": "#F3F3F3",
+			"--inline-code-bg": "rgba(246, 130, 31, 0.08)",
+			"--line-gutter": "#999999",
+			"--line-highlight": "rgba(246, 130, 31, 0.08)",
+			"--search-highlight": "rgba(246, 130, 31, 0.15)",
+			"--search-highlight-active": "rgba(246, 130, 31, 0.25)",
+			"--selection-bg": "rgba(246, 130, 31, 0.15)",
+			"--table-row-alt": "#F9F9F9",
+			"--diff-add-bg": "rgba(90, 163, 72, 0.10)",
+			"--diff-del-bg": "rgba(224, 78, 78, 0.10)",
+			"--diff-add-text": "#468538",
+			"--diff-del-text": "#E04E4E",
+			"--diff-add-gutter": "rgba(90, 163, 72, 0.08)",
+			"--diff-del-gutter": "rgba(224, 78, 78, 0.08)",
+			"--diff-word-add": "rgba(90, 163, 72, 0.18)",
+			"--diff-word-del": "rgba(224, 78, 78, 0.18)",
+			"--alert-note": "#F6821F",
+			"--alert-tip": "#5AA348",
+			"--alert-important": "#F6821F",
+			"--alert-warning": "#F6821F",
+			"--alert-caution": "#E04E4E",
+			"--contrib-0": "#F3F3F3",
+			"--contrib-1": "#FDD9B8",
+			"--contrib-2": "#FAAF6B",
+			"--contrib-3": "#F89640",
+			"--contrib-4": "#F6821F",
+		},
+		syntax: convertToShikiTheme(
+			{
+				foreground: "#1B1B1B",
+				constant: "#1B1B1B",
+				string: "#468538",
+				comment: "#808080",
+				keyword: "#F6821F",
+				parameter: "#1B1B1B",
+				function: "#1B1B1B",
+				stringExpression: "#468538",
+				punctuation: "#808080",
+				link: "#F6821F",
+				number: "#F6821F",
+				property: "#1B1B1B",
+				highlight: "rgba(246, 130, 31, 0.08)",
+				highlightHover: "rgba(246, 130, 31, 0.05)",
+				highlightBorder: "#F6821F",
+				diffInserted: "#5AA348",
+				diffDeleted: "#E04E4E",
+			},
+			"light",
+		),
+	},
+};
 
 // Stripe theme: Payment platform
 export const stripe: ThemeDefinition = {
