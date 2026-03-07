@@ -3,10 +3,18 @@
 import { ContributionChart } from "@/components/dashboard/contribution-chart";
 import { RepoBadge } from "@/components/repo/repo-badge";
 import { XIcon } from "@/components/shared/icons/x-icon";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { TimeAgo } from "@/components/ui/time-ago";
 import { UserProfileActivityTimelineBoundary } from "@/components/users/user-profile-activity-timeline-boundary";
 import { UserProfileActivityTimeline } from "@/components/users/user-profile-activity-timeline";
 import { UserProfileScoreRing } from "@/components/users/user-profile-score-ring";
+import { followUser, unfollowUser } from "@/app/(app)/users/[username]/actions";
 import { getLanguageColor } from "@/lib/github-utils";
 import type { ActivityEvent } from "@/lib/github-types";
 import { computeUserProfileScore } from "@/lib/user-profile-score";
@@ -21,6 +29,7 @@ import {
 	FolderGit2,
 	GitFork,
 	Link2,
+	Loader2,
 	MapPin,
 	Search,
 	Star,
@@ -30,7 +39,15 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useTransition,
+} from "react";
 
 // !TODO: Last item in languages row should take up remaining space on mobile for a cleaner look
 // !TODO: Better input handling of contribution graph on mobile
@@ -39,6 +56,7 @@ export interface UserProfile {
 	name: string | null;
 	avatar_url: string;
 	html_url: string;
+	type: string;
 	bio: string | null;
 	blog: string | null;
 	location: string | null;
@@ -112,6 +130,22 @@ export interface OrgTopRepo {
 	language: string | null;
 }
 
+type ConnectionKind = "followers" | "following";
+
+interface ConnectionUser {
+	id: number;
+	login: string;
+	avatar_url: string;
+	html_url: string;
+	type: string;
+}
+
+interface UserRelationship {
+	viewerLogin: string | null;
+	isOwnProfile: boolean;
+	isFollowing: boolean;
+}
+
 export function UserProfileContent({
 	user,
 	repos,
@@ -143,9 +177,27 @@ export function UserProfileContent({
 	const [languageFilter, setLanguageFilter] = useState<string | null>(null);
 	const [showMoreLanguages, setShowMoreLanguages] = useState(false);
 	const [selectedYear, setSelectedYear] = useState<number | null>(null);
+	const [socialCounts, setSocialCounts] = useState({
+		followers: user.followers,
+		following: user.following,
+	});
+	const [relationship, setRelationship] = useState<UserRelationship | null>(null);
+	const [relationshipError, setRelationshipError] = useState<string | null>(null);
+	const [relationshipLoading, setRelationshipLoading] = useState(user.type === "User");
+	const [isFollowPending, startFollowTransition] = useTransition();
+	const [connectionsOpen, setConnectionsOpen] = useState(false);
+	const [connectionsKind, setConnectionsKind] = useState<ConnectionKind>("followers");
+	const [connections, setConnections] = useState<ConnectionUser[]>([]);
+	const [connectionsPage, setConnectionsPage] = useState(1);
+	const [connectionsHasMore, setConnectionsHasMore] = useState(false);
+	const [connectionsLoading, setConnectionsLoading] = useState(false);
+	const [connectionsError, setConnectionsError] = useState<string | null>(null);
+	const [connectionSearch, setConnectionSearch] = useState("");
+	const [isLoadingMoreConnections, startLoadMoreConnections] = useTransition();
 
 	const currentYear = new Date().getFullYear();
 	const activeYear = selectedYear ?? currentYear;
+	const deferredConnectionSearch = useDeferredValue(connectionSearch);
 
 	const filteredContributions = useMemo(() => {
 		if (!contributions) return null;
@@ -349,6 +401,207 @@ export function UserProfileContent({
 		};
 	}, [showMoreLanguages]);
 
+	useEffect(() => {
+		setSocialCounts({
+			followers: user.followers,
+			following: user.following,
+		});
+	}, [user.followers, user.following, user.login]);
+
+	useEffect(() => {
+		if (user.type !== "User") {
+			setRelationship(null);
+			setRelationshipLoading(false);
+			setRelationshipError(null);
+			return;
+		}
+
+		let cancelled = false;
+		setRelationshipLoading(true);
+		setRelationshipError(null);
+
+		(async () => {
+			try {
+				const res = await fetch(
+					`/api/user-relationship?username=${encodeURIComponent(user.login)}`,
+					{ cache: "no-store" },
+				);
+				const data = (await res.json()) as
+					| UserRelationship
+					| { error?: string };
+				if (!res.ok) {
+					throw new Error(
+						"error" in data && data.error
+							? data.error
+							: "Failed to load follow state",
+					);
+				}
+				if (!cancelled) {
+					setRelationship(data as UserRelationship);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					setRelationshipError(
+						error instanceof Error
+							? error.message
+							: "Failed to load follow state",
+					);
+				}
+			} finally {
+				if (!cancelled) {
+					setRelationshipLoading(false);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [user.login, user.type]);
+
+	const fetchConnectionsPage = useCallback(
+		async (kind: ConnectionKind, page: number) => {
+			const res = await fetch(
+				`/api/user-connections?username=${encodeURIComponent(user.login)}&type=${kind}&page=${page}&per_page=40`,
+				{ cache: "no-store" },
+			);
+			const data = (await res.json()) as
+				| {
+						items: ConnectionUser[];
+						hasMore: boolean;
+				  }
+				| { error?: string };
+
+			if (!res.ok) {
+				throw new Error(
+					"error" in data && data.error
+						? data.error
+						: `Failed to load ${kind}`,
+				);
+			}
+
+			return data as { items: ConnectionUser[]; hasMore: boolean };
+		},
+		[user.login],
+	);
+
+	useEffect(() => {
+		if (!connectionsOpen) return;
+
+		let cancelled = false;
+		setConnectionsLoading(true);
+		setConnectionsError(null);
+
+		(async () => {
+			try {
+				const data = await fetchConnectionsPage(connectionsKind, 1);
+				if (cancelled) return;
+				setConnections(data.items);
+				setConnectionsPage(1);
+				setConnectionsHasMore(data.hasMore);
+			} catch (error) {
+				if (!cancelled) {
+					setConnections([]);
+					setConnectionsHasMore(false);
+					setConnectionsError(
+						error instanceof Error
+							? error.message
+							: `Failed to load ${connectionsKind}`,
+					);
+				}
+			} finally {
+				if (!cancelled) {
+					setConnectionsLoading(false);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [connectionsKind, connectionsOpen, fetchConnectionsPage]);
+
+	const openConnectionsDialog = useCallback((kind: ConnectionKind) => {
+		setConnectionsKind(kind);
+		setConnectionSearch("");
+		setConnectionsError(null);
+		setConnectionsOpen(true);
+	}, []);
+
+	const loadMoreConnections = useCallback(() => {
+		startLoadMoreConnections(async () => {
+			try {
+				const nextPage = connectionsPage + 1;
+				const data = await fetchConnectionsPage(connectionsKind, nextPage);
+				setConnections((current) => {
+					const seen = new Set(current.map((entry) => entry.login));
+					const merged = [...current];
+					for (const entry of data.items) {
+						if (seen.has(entry.login)) continue;
+						seen.add(entry.login);
+						merged.push(entry);
+					}
+					return merged;
+				});
+				setConnectionsPage(nextPage);
+				setConnectionsHasMore(data.hasMore);
+			} catch (error) {
+				setConnectionsError(
+					error instanceof Error
+						? error.message
+						: `Failed to load more ${connectionsKind}`,
+				);
+			}
+		});
+	}, [connectionsKind, connectionsPage, fetchConnectionsPage]);
+
+	const handleToggleFollow = useCallback(() => {
+		if (
+			relationshipLoading ||
+			!relationship ||
+			relationship.isOwnProfile ||
+			user.type !== "User"
+		) {
+			return;
+		}
+
+		const next = !relationship.isFollowing;
+		setRelationship((current) =>
+			current
+				? {
+						...current,
+						isFollowing: next,
+					}
+				: current,
+		);
+		setSocialCounts((current) => ({
+			...current,
+			followers: Math.max(0, current.followers + (next ? 1 : -1)),
+		}));
+		setRelationshipError(null);
+
+		startFollowTransition(async () => {
+			const result = next
+				? await followUser(user.login)
+				: await unfollowUser(user.login);
+			if (!result.error) return;
+
+			setRelationship((current) =>
+				current
+					? {
+							...current,
+							isFollowing: !next,
+						}
+					: current,
+			);
+			setSocialCounts((current) => ({
+				...current,
+				followers: Math.max(0, current.followers + (next ? -1 : 1)),
+			}));
+			setRelationshipError(result.error);
+		});
+	}, [relationship, relationshipLoading, user.login, user.type]);
+
 	const filtered = useMemo(
 		() =>
 			repos
@@ -384,6 +637,12 @@ export function UserProfileContent({
 				}),
 		[repos, search, filter, sort, languageFilter],
 	);
+
+	const filteredConnections = useMemo(() => {
+		const query = deferredConnectionSearch.trim().toLowerCase();
+		if (!query) return connections;
+		return connections.filter((entry) => entry.login.toLowerCase().includes(query));
+	}, [connections, deferredConnectionSearch]);
 
 	const languages = useMemo(
 		() => [
@@ -459,8 +718,8 @@ export function UserProfileContent({
 		const languageCount = new Set(allLanguages).size;
 
 		return computeUserProfileScore({
-			followers: user.followers,
-			following: user.following,
+			followers: socialCounts.followers,
+			following: socialCounts.following,
 			publicRepos: user.public_repos,
 			accountCreated: user.created_at,
 			hasBio: !!user.bio,
@@ -471,7 +730,7 @@ export function UserProfileContent({
 			orgCount: orgs.length,
 			languageCount,
 		});
-	}, [user, repos, orgs, contributions, totalStars, totalForks, orgTopRepos]);
+	}, [user, repos, orgs, contributions, totalStars, totalForks, orgTopRepos, socialCounts]);
 
 	return (
 		<div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 pb-2">
@@ -516,6 +775,55 @@ export function UserProfileContent({
 					</p>
 				)}
 
+				{user.type === "User" &&
+					(relationshipLoading ||
+						(relationship !== null &&
+							!relationship.isOwnProfile)) && (
+						<div className="mt-4 flex items-center gap-2">
+							<button
+								type="button"
+								onClick={handleToggleFollow}
+								disabled={
+									relationshipLoading ||
+									isFollowPending ||
+									!relationship
+								}
+								className={cn(
+									"inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider transition-colors rounded-md",
+									relationship?.isFollowing
+										? "border-success/30 text-success hover:bg-success/10"
+										: "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/3",
+									(relationshipLoading ||
+										isFollowPending) &&
+										"opacity-60 cursor-progress",
+								)}
+							>
+								{(relationshipLoading ||
+									isFollowPending) && (
+									<Loader2 className="w-3 h-3 animate-spin" />
+								)}
+								{relationship?.isFollowing
+									? "Following"
+									: "Follow"}
+							</button>
+							<a
+								href={user.html_url}
+								target="_blank"
+								rel="noreferrer"
+								className="inline-flex items-center gap-1.5 border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/3 transition-colors rounded-md"
+							>
+								GitHub
+								<ExternalLink className="w-3 h-3" />
+							</a>
+						</div>
+					)}
+
+				{relationshipError && (
+					<p className="mt-2 text-[10px] text-warning font-mono">
+						{relationshipError}
+					</p>
+				)}
+
 				{/* Stats grid */}
 				<div className="grid grid-cols-3 gap-px mt-5 bg-border rounded-md overflow-hidden">
 					{[
@@ -544,20 +852,28 @@ export function UserProfileContent({
 
 				{/* Followers */}
 				<div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground font-mono">
-					<span className="inline-flex items-center gap-1.5">
+					<button
+						type="button"
+						onClick={() => openConnectionsDialog("followers")}
+						className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer"
+					>
 						<Users className="w-3 h-3" />
 						<span className="text-foreground font-medium">
-							{formatNumber(user.followers)}
+							{formatNumber(socialCounts.followers)}
 						</span>{" "}
 						followers
-					</span>
+					</button>
 					<span className="text-muted-foreground/30">&middot;</span>
-					<span>
+					<button
+						type="button"
+						onClick={() => openConnectionsDialog("following")}
+						className="hover:text-foreground transition-colors cursor-pointer"
+					>
 						<span className="text-foreground font-medium">
-							{formatNumber(user.following)}
+							{formatNumber(socialCounts.following)}
 						</span>{" "}
 						following
-					</span>
+					</button>
 				</div>
 
 				{/* Metadata */}
@@ -1294,6 +1610,128 @@ export function UserProfileContent({
 					</div>
 				)}
 			</main>
+
+			<Dialog open={connectionsOpen} onOpenChange={setConnectionsOpen}>
+				<DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+					<DialogHeader className="px-5 py-4 border-b border-border">
+						<DialogTitle className="text-base font-medium">
+							{connectionsKind === "followers"
+								? "Followers"
+								: "Following"}
+						</DialogTitle>
+						<DialogDescription className="text-xs font-mono">
+							@{user.login}{" "}
+							{connectionsKind === "followers"
+								? `is followed by ${formatNumber(socialCounts.followers)} people`
+								: `follows ${formatNumber(socialCounts.following)} people`}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="px-5 py-4 border-b border-border">
+						<div className="relative">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+							<input
+								type="text"
+								value={connectionSearch}
+								onChange={(event) =>
+									setConnectionSearch(
+										event.target.value,
+									)
+								}
+								placeholder={`Filter ${connectionsKind}...`}
+								className="w-full bg-transparent border border-border pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50 transition-colors rounded-md font-mono"
+							/>
+						</div>
+					</div>
+
+					<div className="max-h-[min(70vh,42rem)] overflow-y-auto">
+						{connectionsLoading ? (
+							<div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+								<Loader2 className="w-4 h-4 animate-spin" />
+								Loading {connectionsKind}...
+							</div>
+						) : connectionsError ? (
+							<div className="px-5 py-12 text-center">
+								<p className="text-sm text-warning font-mono">
+									{connectionsError}
+								</p>
+							</div>
+						) : filteredConnections.length === 0 ? (
+							<div className="px-5 py-12 text-center">
+								<p className="text-sm text-muted-foreground/70 font-mono">
+									{connectionSearch.trim()
+										? `No ${connectionsKind} match "${connectionSearch}".`
+										: `No ${connectionsKind} to show.`}
+								</p>
+							</div>
+						) : (
+							<div className="divide-y divide-border">
+								{filteredConnections.map(
+									(entry) => (
+										<Link
+											key={
+												entry.id
+											}
+											href={`/users/${entry.login}`}
+											onClick={() =>
+												setConnectionsOpen(
+													false,
+												)
+											}
+											className="flex items-center gap-3 px-5 py-3 hover:bg-muted/60 dark:hover:bg-white/3 transition-colors"
+										>
+											<Image
+												src={
+													entry.avatar_url
+												}
+												alt={
+													entry.login
+												}
+												width={
+													36
+												}
+												height={
+													36
+												}
+												className="rounded-full border border-border shrink-0"
+											/>
+											<div className="min-w-0 flex-1">
+												<div className="text-sm font-medium truncate">
+													{
+														entry.login
+													}
+												</div>
+												<div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mt-0.5">
+													{
+														entry.type
+													}
+												</div>
+											</div>
+											<ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+										</Link>
+									),
+								)}
+							</div>
+						)}
+					</div>
+
+					{connectionsHasMore && !connectionSearch.trim() && (
+						<div className="px-5 py-4 border-t border-border">
+							<button
+								type="button"
+								onClick={loadMoreConnections}
+								disabled={isLoadingMoreConnections}
+								className="inline-flex items-center gap-1.5 border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/3 transition-colors rounded-md disabled:opacity-60 disabled:cursor-progress"
+							>
+								{isLoadingMoreConnections && (
+									<Loader2 className="w-3 h-3 animate-spin" />
+								)}
+								Load more
+							</button>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

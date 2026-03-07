@@ -123,6 +123,7 @@ export default async function UserProfilePage({
 				name: userData.name ?? null,
 				avatar_url: userData.avatar_url,
 				html_url: userData.html_url,
+				type: userData.type,
 				bio: userData.bio ?? null,
 				blog: userData.blog || null,
 				location: userData.location || null,
