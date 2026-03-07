@@ -93,7 +93,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 					key.
 				</p>
 
-				<div className="flex gap-2 mb-3">
+				<div className="mb-3 flex flex-col gap-2 sm:flex-row">
 					<button
 						onClick={() => onUpdate({ useOwnApiKey: false })}
 						className={cn(
@@ -121,7 +121,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 				{settings.useOwnApiKey && (
 					<div className="space-y-4">
 						<div>
-							<div className="flex gap-2">
+							<div className="flex flex-col gap-2 sm:flex-row">
 								<input
 									type="password"
 									value={apiKey}
@@ -137,7 +137,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 											? `Current: ${settings.openrouterApiKey}`
 											: "sk-or-..."
 									}
-									className="flex-1 max-w-sm bg-transparent border border-border px-3 py-1.5 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50 transition-colors rounded-md"
+									className="w-full flex-1 bg-transparent border border-border px-3 py-1.5 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50 transition-colors rounded-md sm:max-w-sm"
 								/>
 								<button
 									onClick={async () => {
@@ -150,7 +150,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 											);
 										}
 									}}
-									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer sm:self-auto"
 								>
 									Save
 								</button>
@@ -160,7 +160,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 										testing ||
 										!apiKey.trim()
 									}
-									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed sm:self-auto"
 								>
 									{testing ? (
 										<Loader2 className="w-3 h-3 animate-spin" />
@@ -187,7 +187,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 							<label className="text-[10px] text-muted-foreground/50 font-mono">
 								Custom OpenRouter model ID
 							</label>
-							<div className="flex gap-2 mt-1.5">
+							<div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
 								<input
 									type="text"
 									value={
@@ -202,7 +202,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 										)
 									}
 									placeholder="provider/model-name"
-									className="flex-1 max-w-sm bg-transparent border border-border px-3 py-1.5 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50 transition-colors rounded-md"
+									className="w-full flex-1 bg-transparent border border-border px-3 py-1.5 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50 transition-colors rounded-md sm:max-w-sm"
 								/>
 								<button
 									onClick={() => {
@@ -216,7 +216,7 @@ export function AIModelTab({ settings, onUpdate }: AIModelTabProps) {
 												ghostModel: val,
 											});
 									}}
-									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+									className="border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer sm:self-auto"
 								>
 									Save
 								</button>

@@ -341,7 +341,7 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 							{isCanceling ? "canceling" : "active"}
 						</span>
 						{isCanceling && (
-							<div className="mt-3 flex items-start gap-2.5 rounded border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+							<div className="mt-3 flex flex-col gap-3 rounded border border-destructive/20 bg-destructive/5 px-3 py-2.5 sm:flex-row sm:items-start sm:gap-2.5">
 								<AlertCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
 								<div className="flex-1 min-w-0">
 									<p className="text-xs font-mono text-destructive">
@@ -438,7 +438,7 @@ export function BillingTab({ settings, onNavigate }: BillingTabProps) {
 					</p>
 				)}
 
-				<div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+				<div className="mt-4 flex flex-col gap-2 border-t border-border/50 pt-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-xs font-mono text-muted-foreground">
 						Monthly spend limit:{" "}
 						<span className="text-foreground">

@@ -41,7 +41,12 @@ function formatJoinDate(dateStr: string): string {
 	return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountTabProps) {
+export function AccountTab({
+	user,
+	settings: _settings,
+	onUpdate: _onUpdate,
+	githubProfile,
+}: AccountTabProps) {
 	const [confirmDelete, setConfirmDelete] = useState(false);
 	const [grantedGroupIds, setGrantedGroupIds] = useState<Set<string>>(new Set());
 	const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,7 +130,7 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 		<div className="divide-y divide-border">
 			{/* Profile Header */}
 			<div className="px-4 py-5">
-				<div className="flex items-start gap-5">
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
 					{/* Avatar */}
 					<div className="relative shrink-0">
 						{user.image ? (
@@ -161,7 +166,7 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 						</div>
 
 						{/* Stats row */}
-						<div className="flex items-center gap-5 mt-3">
+						<div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
 							{stats.map((s) => (
 								<div
 									key={s.label}
@@ -310,7 +315,7 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 							))}
 						</div>
 
-						<div className="flex items-center gap-3 mt-3">
+						<div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 							<button
 								onClick={handleUpdatePermissions}
 								disabled={!hasChanges || updating}
@@ -372,7 +377,7 @@ export function AccountTab({ user, settings, onUpdate, githubProfile }: AccountT
 					Deletes local data and signs you out. Your GitHub account is
 					unaffected.
 				</p>
-				<div className="flex items-center gap-2 mt-2">
+				<div className="mt-2 flex flex-wrap items-center gap-2">
 					<button
 						onClick={handleDeleteAccount}
 						className={cn(

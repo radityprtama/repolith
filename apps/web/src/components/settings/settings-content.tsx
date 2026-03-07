@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRef, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Settings, Bot, CreditCard, User, Code2 } from "lucide-react";
+import { Settings, Bot, CreditCard, User, Code2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralTab } from "./tabs/general-tab";
 import type { UserSettings } from "@/lib/user-settings-store";
@@ -76,6 +76,8 @@ export function SettingsContent({
 	const { emit } = useMutationEvents();
 	const queryClient = useQueryClient();
 	const updateSeqRef = useRef(0);
+	const activeTabConfig = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
+	const ActiveTabIcon = activeTabConfig.icon;
 
 	function preloadTab(tab: TabId) {
 		void TAB_PRELOADERS[tab]?.();
@@ -147,7 +149,7 @@ export function SettingsContent({
 	}
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 			{/* Header */}
 			<div className="shrink-0 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
 				<h1 className="text-xl font-medium tracking-tight">Settings</h1>
@@ -157,11 +159,39 @@ export function SettingsContent({
 				</p>
 			</div>
 
+			{/* Mobile section selector */}
+			<div className="shrink-0 px-4 pb-3 sm:hidden">
+				<label
+					htmlFor="settings-tab-select"
+					className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground"
+				>
+					Section
+				</label>
+				<div className="relative mt-2">
+					<ActiveTabIcon className="pointer-events-none absolute top-1/2 left-3 size-3 -translate-y-1/2 text-muted-foreground" />
+					<select
+						id="settings-tab-select"
+						value={activeTab}
+						onChange={(event) =>
+							handleTabChange(event.target.value as TabId)
+						}
+						className="h-10 w-full appearance-none border border-border bg-background py-2.5 pr-9 pl-8 text-[11px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50"
+					>
+						{TABS.map((tab) => (
+							<option key={tab.id} value={tab.id}>
+								{tab.label}
+							</option>
+						))}
+					</select>
+					<ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground" />
+				</div>
+			</div>
+
 			{/* Tab bar */}
 			<div
 				role="tablist"
 				aria-label="Settings sections"
-				className="shrink-0 flex items-center border border-border mx-4 mb-0 overflow-x-auto no-scrollbar sm:mx-6"
+				className="mx-4 mb-0 hidden shrink-0 items-center overflow-x-auto border border-border no-scrollbar sm:mx-6 sm:flex"
 			>
 				{TABS.map(({ id, label, icon: Icon }) => (
 					<button
@@ -189,7 +219,7 @@ export function SettingsContent({
 			{/* Content — only this area scrolls */}
 			<div
 				aria-busy={isPending}
-				className="flex-1 min-h-0 overflow-y-auto border border-t-0 border-border mx-4 mb-4 sm:mx-6 sm:mb-6"
+				className="mx-4 mb-4 flex-1 min-h-0 min-w-0 overflow-y-auto border border-border sm:mx-6 sm:mb-6 sm:border-t-0"
 			>
 				{activeTab === "general" && (
 					<GeneralTab

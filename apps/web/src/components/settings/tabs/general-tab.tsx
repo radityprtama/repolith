@@ -118,13 +118,13 @@ export function GeneralTab({
 				<p className="text-[11px] text-muted-foreground/60 mt-0.5 mb-3">
 					Toggle between dark and light mode.
 				</p>
-				<div className="flex gap-2">
+				<div className="flex flex-col gap-2 sm:flex-row">
 					<button
 						onClick={() =>
 							mode === "light" && handleToggleMode()
 						}
 						className={cn(
-							"flex items-center gap-2 px-3 py-2 border text-sm transition-colors",
+							"flex items-center justify-center gap-2 border px-3 py-2 text-sm transition-colors sm:justify-start",
 							mode === "dark"
 								? "border-foreground/30 bg-muted/50"
 								: "border-border hover:border-foreground/10",
@@ -141,7 +141,7 @@ export function GeneralTab({
 							mode === "dark" && handleToggleMode()
 						}
 						className={cn(
-							"flex items-center gap-2 px-3 py-2 border text-sm transition-colors",
+							"flex items-center justify-center gap-2 border px-3 py-2 text-sm transition-colors sm:justify-start",
 							mode === "light"
 								? "border-foreground/30 bg-muted/50"
 								: "border-border hover:border-foreground/10",
