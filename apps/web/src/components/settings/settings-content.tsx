@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Settings, Bot, CreditCard, User, Code2, ChevronDown } from "lucide-react";
+import { Settings, Bot, CreditCard, User, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralTab } from "./tabs/general-tab";
 import { AIModelTab } from "./tabs/ai-model-tab";
@@ -43,9 +43,6 @@ export function SettingsContent({
 	const { emit } = useMutationEvents();
 	const queryClient = useQueryClient();
 	const updateSeqRef = useRef(0);
-	const activeTabConfig = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
-	const ActiveTabIcon = activeTabConfig.icon;
-
 	function handleTabChange(nextTab: TabId) {
 		setActiveTab(nextTab);
 	}
@@ -118,39 +115,11 @@ export function SettingsContent({
 				</p>
 			</div>
 
-			{/* Mobile section selector */}
-			<div className="shrink-0 px-4 pb-3 sm:hidden">
-				<label
-					htmlFor="settings-tab-select"
-					className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground"
-				>
-					Section
-				</label>
-				<div className="relative mt-2">
-					<ActiveTabIcon className="pointer-events-none absolute top-1/2 left-3 size-3 -translate-y-1/2 text-muted-foreground" />
-					<select
-						id="settings-tab-select"
-						value={activeTab}
-						onChange={(event) =>
-							handleTabChange(event.target.value as TabId)
-						}
-						className="h-10 w-full appearance-none border border-border bg-background py-2.5 pr-9 pl-8 text-[11px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50"
-					>
-						{TABS.map((tab) => (
-							<option key={tab.id} value={tab.id}>
-								{tab.label}
-							</option>
-						))}
-					</select>
-					<ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-3 -translate-y-1/2 text-muted-foreground" />
-				</div>
-			</div>
-
-			{/* Tab bar */}
+			{/* Tab bar — unified for all screen sizes, scrolls horizontally on small viewports */}
 			<div
 				role="tablist"
 				aria-label="Settings sections"
-				className="mx-4 mb-0 hidden shrink-0 items-center overflow-x-auto border border-border no-scrollbar sm:mx-6 sm:flex"
+				className="mx-4 mb-0 flex shrink-0 items-stretch overflow-x-auto border border-border no-scrollbar sm:mx-6"
 			>
 				{TABS.map(({ id, label, icon: Icon }) => (
 					<button
@@ -160,10 +129,10 @@ export function SettingsContent({
 						aria-selected={activeTab === id}
 						onClick={() => handleTabChange(id)}
 						className={cn(
-							"flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[11px] font-mono uppercase tracking-wider transition-colors cursor-pointer sm:px-4",
+							"relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[11px] font-mono uppercase tracking-wider transition-all cursor-pointer sm:px-4",
 							activeTab === id
-								? "bg-muted/50 text-foreground dark:bg-white/[0.04]"
-								: "text-muted-foreground hover:text-foreground/60",
+								? "bg-muted/50 text-foreground dark:bg-white/4 after:absolute after:inset-x-0 after:top-0 after:h-0.5 after:bg-foreground"
+								: "text-muted-foreground hover:bg-muted/20 hover:text-foreground/70",
 						)}
 					>
 						<Icon className="h-3 w-3" />
@@ -173,7 +142,7 @@ export function SettingsContent({
 			</div>
 
 			{/* Content — only this area scrolls */}
-			<div className="mx-4 mb-4 flex-1 min-h-0 min-w-0 overflow-y-auto border border-border sm:mx-6 sm:mb-6 sm:border-t-0">
+			<div className="mx-4 mb-4 flex-1 min-h-0 min-w-0 overflow-y-auto border border-t-0 border-border sm:mx-6 sm:mb-6">
 				{activeTab === "general" && (
 					<GeneralTab
 						settings={settings}
