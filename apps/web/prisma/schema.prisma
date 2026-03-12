@@ -18,11 +18,12 @@ model User {
   createdAt      DateTime
   updatedAt      DateTime
 
-  sessions     Session[]
-  accounts     Account[]
-  usageLogs    UsageLog[]
-  aiCallLogs   AiCallLog[]
-  creditLedger CreditLedger[]
+  sessions       Session[]
+  accounts       Account[]
+  usageLogs      UsageLog[]
+  aiCallLogs     AiCallLog[]
+  creditLedger   CreditLedger[]
+  purchaseGrants PurchaseGrant[]
 
   aiMessageCount Int       @default(0)
   lastActiveAt   DateTime?
@@ -30,9 +31,6 @@ model User {
   banned         Boolean?  @default(false)
   banReason      String?
   banExpires     DateTime?
-
-  stripeCustomerId String?
-  polarCustomerId  String?
 
   @@index([githubPat, email])
   @@map("user")
@@ -87,29 +85,6 @@ model Verification {
 
   @@index([identifier, expiresAt])
   @@map("verification")
-}
-
-model Subscription {
-  id                   String    @id
-  plan                 String
-  referenceId          String
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  status               String?   @default("incomplete")
-  periodStart          DateTime?
-  periodEnd            DateTime?
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  cancelAtPeriodEnd    Boolean?  @default(false)
-  cancelAt             DateTime?
-  canceledAt           DateTime?
-  endedAt              DateTime?
-  seats                Int?
-  billingInterval      String?
-  stripeScheduleId     String?
-
-  @@index([referenceId, status])
-  @@map("subscription")
 }
 
 model GithubCacheEntry {
@@ -267,22 +242,18 @@ model PinnedItem {
 }
 
 model UsageLog {
-  id             String   @id @default(cuid())
-  userId         String
-  taskType       String
-  costUsd        Decimal  @default(0) @db.Decimal(10, 6)
-  creditUsed     Decimal  @default(0) @db.Decimal(10, 6)
-  aiCallLogId    Int?     @unique
-  stripeReported Boolean  @default(false)
-  polarReported  Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  taskType    String
+  costUsd     Decimal  @default(0) @db.Decimal(10, 6)
+  aiCallLogId Int?     @unique
+  createdAt   DateTime @default(now())
 
-  aiCallLog AiCallLog? @relation(fields: [aiCallLogId], references: [id])
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiCallLog  AiCallLog?   @relation(fields: [aiCallLogId], references: [id])
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditEntry CreditLedger?
 
   @@index([userId, createdAt])
-  @@index([stripeReported, createdAt])
-  @@index([polarReported, createdAt])
   @@map("usage_logs")
 }
 
@@ -309,20 +280,53 @@ model AiCallLog {
 }
 
 model CreditLedger {
-  id          String    @id @default(cuid())
-  userId      String
-  amount      Decimal   @db.Decimal(10, 6)
-  type        String
-  description String?
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(cuid())
+  userId         String
+  amount         Decimal   @db.Decimal(10, 6)
+  entryType      String    @map("type")
+  description    String?
+  metadataJson   String?
+  expiresAt      DateTime?
+  purchaseGrantId String?
+  usageLogId     String?   @unique
+  createdAt      DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseGrant PurchaseGrant? @relation(fields: [purchaseGrantId], references: [id], onDelete: SetNull)
+  usageLog      UsageLog?      @relation(fields: [usageLogId], references: [id], onDelete: SetNull)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, type])
+  @@index([userId, entryType])
   @@index([userId, createdAt])
   @@index([userId, expiresAt])
+  @@index([purchaseGrantId])
   @@map("credit_ledger")
+}
+
+model PurchaseGrant {
+  id                    String    @id @default(cuid())
+  userId                String
+  polarOrderId          String    @unique
+  polarEventId          String
+  polarCheckoutId       String?
+  paymentAmountUsd      Decimal   @db.Decimal(10, 6)
+  creditsGranted        Decimal   @db.Decimal(10, 6)
+  currency              String
+  status                String
+  metadataJson          String?
+  refundedAt            DateTime?
+  refundedBaseAmountUsd Decimal   @default(0) @db.Decimal(10, 6)
+  reversedAmountUsd     Decimal   @default(0) @db.Decimal(10, 6)
+  unrecoveredAmountUsd  Decimal   @default(0) @db.Decimal(10, 6)
+  lastRefundEventId     String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditEntries CreditLedger[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("purchase_grant")
 }
 
 model SpendingLimit {

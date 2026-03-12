@@ -66,6 +66,25 @@ export function AppNavbar({ session, notifications }: AppNavbarProps) {
 		});
 	}, [subscribe]);
 
+	useEffect(() => {
+		const url = new URL(window.location.href);
+		const settingsParam = url.searchParams.get("settings");
+		const shouldOpenBillingFromCheckout =
+			url.searchParams.get("checkout_id") &&
+			url.searchParams.get("tab") === "billing";
+
+		if (settingsParam === "billing" || shouldOpenBillingFromCheckout) {
+			setSettingsTab("billing");
+			setSettingsOpen(true);
+			url.searchParams.delete("checkout_id");
+			url.searchParams.delete("settings");
+			if (shouldOpenBillingFromCheckout) {
+				url.searchParams.delete("tab");
+			}
+			window.history.replaceState({}, "", url.toString());
+		}
+	}, []);
+
 	const visibleNotifs = notifications.filter((n) => !doneIds.has(n.id));
 	const unreadCount = visibleNotifs.filter((n) => n.unread).length;
 

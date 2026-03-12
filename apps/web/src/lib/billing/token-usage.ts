@@ -1,38 +1,20 @@
 import type { LanguageModelUsage } from "ai";
+import { Prisma } from "../../generated/prisma/client";
 import {
 	calculateCostUsd,
 	hasModelPricing,
 	type CostDetails,
 	type UsageDetails,
 } from "./ai-models";
+import { decimal, toNegativeAmount } from "./amounts";
 import { isBillingExemptUser } from "./billing-exemption";
-import { getCreditBalance } from "./credit";
-import { ACTIVE_SUBSCRIPTION_STATUSES, FIXED_COSTS } from "./config";
-import { Prisma } from "../../generated/prisma/client";
-import { prisma } from "../db";
-import { reportUsageToStripe } from "./stripe";
-import { reportUsageToPolar } from "./polar";
+import { getCreditBalanceSnapshot } from "./credit";
+import { CREDIT_ENTRY_TYPE, FIXED_COSTS } from "./config";
+import { withSerializableTx } from "./transaction";
 
-const TX_OPTIONS = {
-	isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-	maxWait: 5000,
-	timeout: 10000,
-} as const;
-
-const TX_MAX_RETRIES = 3;
-
-/** Run a Serializable transaction with automatic retry on write conflicts (P2034). */
-async function withSerializableTx<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-	for (let attempt = 0; ; attempt++) {
-		try {
-			return await prisma.$transaction(fn, TX_OPTIONS);
-		} catch (e) {
-			const isWriteConflict =
-				e instanceof Prisma.PrismaClientKnownRequestError &&
-				e.code === "P2034";
-			if (isWriteConflict && attempt < TX_MAX_RETRIES) continue;
-			throw e;
-		}
+class InsufficientCreditBalanceError extends Error {
+	constructor() {
+		super("Insufficient credit balance to record usage");
 	}
 }
 
@@ -54,42 +36,29 @@ function buildUsageDetails(usage: LanguageModelUsage): UsageDetails {
 
 function toJsonOrNull(obj: UsageDetails | CostDetails): string | null {
 	const { total: _, ...rest } = obj;
-	const hasValues = Object.values(rest).some((v) => v !== undefined && v > 0);
+	const hasValues = Object.values(rest).some((value) => value !== undefined && value > 0);
 	return hasValues ? JSON.stringify(obj) : null;
 }
 
-async function splitCost(
+async function ensureSufficientBalance(
 	tx: Prisma.TransactionClient,
 	userId: string,
-	fullCost: number,
-): Promise<{ creditUsed: number; costUsd: number }> {
-	const balance = await getCreditBalance(userId, tx);
-	const creditUsed = Math.min(fullCost, balance.available);
-	const remainder = fullCost - creditUsed;
-
-	// No subscription → credit-only; don't bill beyond credits
-	if (remainder > 0) {
-		const subscription = await tx.subscription.findFirst({
-			where: {
-				referenceId: userId,
-				status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
-			},
-			select: { id: true },
-		});
-		if (!subscription) return { creditUsed, costUsd: 0 };
+	fullCostUsd: Prisma.Decimal,
+): Promise<void> {
+	const balance = await getCreditBalanceSnapshot(userId, tx);
+	if (balance.available.lessThan(fullCostUsd)) {
+		throw new InsufficientCreditBalanceError();
 	}
-
-	return { creditUsed, costUsd: remainder };
 }
 
 export async function logTokenUsage(params: {
-	userId: string;
-	provider: string;
+	conversationId?: string | undefined;
+	isCustomApiKey: boolean;
 	modelId: string;
+	provider: string;
 	taskType: string;
 	usage: LanguageModelUsage;
-	isCustomApiKey: boolean;
-	conversationId?: string | undefined;
+	userId: string;
 }): Promise<void> {
 	const usageDetails = buildUsageDetails(params.usage);
 	const isBillingExempt = await isBillingExemptUser(params.userId);
@@ -97,86 +66,100 @@ export async function logTokenUsage(params: {
 		params.isCustomApiKey || !hasModelPricing(params.modelId)
 			? null
 			: calculateCostUsd(params.modelId, usageDetails);
-	const fullCost = costDetails?.total ?? 0;
+	const fullCostUsd = decimal(costDetails?.total ?? 0);
 
-	const usageLog = await withSerializableTx(async (tx) => {
-		const { creditUsed, costUsd } =
-			params.isCustomApiKey || isBillingExempt || fullCost <= 0
-				? { creditUsed: 0, costUsd: 0 }
-				: await splitCost(tx, params.userId, fullCost);
+	await withSerializableTx(async (tx) => {
+		const shouldBill =
+			!params.isCustomApiKey && !isBillingExempt && fullCostUsd.greaterThan(0);
+
+		if (shouldBill) {
+			await ensureSufficientBalance(tx, params.userId, fullCostUsd);
+		}
 
 		const aiCallLog = await tx.aiCallLog.create({
 			data: {
-				userId: params.userId,
-				provider: params.provider,
-				modelId: params.modelId,
-				taskType: params.taskType,
+				conversationId: params.conversationId,
+				costJson: costDetails ? toJsonOrNull(costDetails) : null,
 				inputTokens: usageDetails.input,
+				modelId: params.modelId,
 				outputTokens: usageDetails.output,
+				provider: params.provider,
+				taskType: params.taskType,
 				totalTokens: usageDetails.total,
 				usageJson: toJsonOrNull(usageDetails),
-				costJson: costDetails ? toJsonOrNull(costDetails) : null,
+				userId: params.userId,
 				usingOwnKey: params.isCustomApiKey,
-				conversationId: params.conversationId,
 			},
 		});
 
-		return tx.usageLog.create({
+		const usageLog = await tx.usageLog.create({
 			data: {
-				userId: params.userId,
-				taskType: params.taskType,
-				costUsd,
-				creditUsed,
 				aiCallLogId: aiCallLog.id,
-				stripeReported: costUsd <= 0,
-				polarReported: costUsd <= 0,
+				costUsd: shouldBill ? fullCostUsd : decimal(0),
+				taskType: params.taskType,
+				userId: params.userId,
+			},
+		});
+
+		if (!shouldBill) {
+			return;
+		}
+
+		await tx.creditLedger.create({
+			data: {
+				amount: toNegativeAmount(fullCostUsd),
+				description: `AI usage: ${params.taskType}`,
+				entryType: CREDIT_ENTRY_TYPE.USAGE_DEDUCTION,
+				metadataJson: JSON.stringify({
+					modelId: params.modelId,
+					provider: params.provider,
+					taskType: params.taskType,
+				}),
+				usageLogId: usageLog.id,
+				userId: params.userId,
 			},
 		});
 	});
-
-	if (Number(usageLog.costUsd) > 0) {
-		reportUsageToStripe(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
-			(e) => console.error("[billing] reportUsageToStripe failed:", e),
-		);
-		reportUsageToPolar(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
-			(e) => console.error("[billing] reportUsageToPolar failed:", e),
-		);
-	}
 }
 
 export async function logFixedCostUsage(params: {
-	userId: string;
-	taskType: string;
 	costUsd?: number | undefined;
+	taskType: string;
+	userId: string;
 }): Promise<void> {
-	const fullCost =
-		params.costUsd ?? FIXED_COSTS[params.taskType as keyof typeof FIXED_COSTS] ?? 0;
+	const fullCostUsd = decimal(
+		params.costUsd ?? FIXED_COSTS[params.taskType as keyof typeof FIXED_COSTS] ?? 0,
+	);
 	const isBillingExempt = await isBillingExemptUser(params.userId);
 
-	const usageLog = await withSerializableTx(async (tx) => {
-		const { creditUsed, costUsd } =
-			!isBillingExempt && fullCost > 0
-				? await splitCost(tx, params.userId, fullCost)
-				: { creditUsed: 0, costUsd: 0 };
+	await withSerializableTx(async (tx) => {
+		const shouldBill = !isBillingExempt && fullCostUsd.greaterThan(0);
 
-		return tx.usageLog.create({
+		if (shouldBill) {
+			await ensureSufficientBalance(tx, params.userId, fullCostUsd);
+		}
+
+		const usageLog = await tx.usageLog.create({
 			data: {
-				userId: params.userId,
+				costUsd: shouldBill ? fullCostUsd : decimal(0),
 				taskType: params.taskType,
-				costUsd,
-				creditUsed,
-				stripeReported: costUsd <= 0,
-				polarReported: costUsd <= 0,
+				userId: params.userId,
+			},
+		});
+
+		if (!shouldBill) {
+			return;
+		}
+
+		await tx.creditLedger.create({
+			data: {
+				amount: toNegativeAmount(fullCostUsd),
+				description: `AI usage: ${params.taskType}`,
+				entryType: CREDIT_ENTRY_TYPE.USAGE_DEDUCTION,
+				metadataJson: JSON.stringify({ taskType: params.taskType }),
+				usageLogId: usageLog.id,
+				userId: params.userId,
 			},
 		});
 	});
-
-	if (Number(usageLog.costUsd) > 0) {
-		reportUsageToStripe(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
-			(e) => console.error("[billing] reportUsageToStripe failed:", e),
-		);
-		reportUsageToPolar(usageLog.id, params.userId, Number(usageLog.costUsd)).catch(
-			(e) => console.error("[billing] reportUsageToPolar failed:", e),
-		);
-	}
 }

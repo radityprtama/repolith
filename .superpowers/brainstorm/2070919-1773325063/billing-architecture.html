@@ -1,0 +1,67 @@
+<h2>Billing Simplification</h2>
+<p class="subtitle">Current repo shape on the left. Requested PAYG target on the right.</p>
+
+<div class="split section">
+  <div class="mockup">
+    <div class="mockup-header">Current State</div>
+    <div class="mockup-body">
+      <div class="label">What exists now</div>
+      <div style="display:grid;gap:12px">
+        <div style="border:1px solid #334155;border-radius:12px;padding:12px">
+          <strong>Dual gateway</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Stripe + Polar both wired through Better Auth</div>
+        </div>
+        <div style="border:1px solid #334155;border-radius:12px;padding:12px">
+          <strong>Subscription model</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Base plan, subscription checks, spending-limit branches, restore/portal flows</div>
+        </div>
+        <div style="border:1px solid #334155;border-radius:12px;padding:12px">
+          <strong>Usage reporting</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Usage logs try to report to Stripe meter events and Polar usage hooks</div>
+        </div>
+        <div style="border:1px solid #334155;border-radius:12px;padding:12px">
+          <strong>Credits today</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Credit balance is derived from grant rows minus usage, with welcome credit mixed in</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Target State</div>
+    <div class="mockup-body">
+      <div class="label">Requested end state</div>
+      <div style="display:grid;gap:12px">
+        <div style="border:1px solid #14532d;border-radius:12px;padding:12px;background:rgba(34,197,94,0.08)">
+          <strong>Single gateway</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Polar only. No Stripe anywhere in code, config, or UI.</div>
+        </div>
+        <div style="border:1px solid #14532d;border-radius:12px;padding:12px;background:rgba(34,197,94,0.08)">
+          <strong>PAYG only</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">No subscriptions, no tiers, no packs. User enters any dollar amount.</div>
+        </div>
+        <div style="border:1px solid #14532d;border-radius:12px;padding:12px;background:rgba(34,197,94,0.08)">
+          <strong>Purchase-grant source of truth</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Webhook creates one grant record per paid order event, then writes the credit ledger.</div>
+        </div>
+        <div style="border:1px solid #14532d;border-radius:12px;padding:12px;background:rgba(34,197,94,0.08)">
+          <strong>Ledger stays USD-based</strong>
+          <div style="font-size:14px;color:#94a3b8;margin-top:6px">Credits are UI only. 1 credit = 1 USD cent. AI usage still deducts dollar value.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Likely New Flow</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;text-align:center">
+      <div style="border:1px solid #334155;border-radius:12px;padding:10px">Billing UI<br><span style="font-size:13px;color:#94a3b8">enter dollar amount</span></div>
+      <div style="border:1px solid #334155;border-radius:12px;padding:10px">Polar Checkout<br><span style="font-size:13px;color:#94a3b8">single product + ad hoc price</span></div>
+      <div style="border:1px solid #334155;border-radius:12px;padding:10px">Webhook<br><span style="font-size:13px;color:#94a3b8">verify signature</span></div>
+      <div style="border:1px solid #334155;border-radius:12px;padding:10px">Purchase Grant<br><span style="font-size:13px;color:#94a3b8">idempotent order record</span></div>
+      <div style="border:1px solid #334155;border-radius:12px;padding:10px">Credit Ledger<br><span style="font-size:13px;color:#94a3b8">grant / refund / adjustment</span></div>
+    </div>
+  </div>
+</div>

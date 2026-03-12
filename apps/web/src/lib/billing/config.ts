@@ -1,5 +1,3 @@
-// ── Error Codes ──
-
 export const BILLING_ERROR = {
 	MESSAGE_LIMIT_REACHED: "MESSAGE_LIMIT_REACHED",
 	CREDIT_EXHAUSTED: "CREDIT_EXHAUSTED",
@@ -17,43 +15,41 @@ export function getBillingErrorCode(result: {
 	return BILLING_ERROR.MESSAGE_LIMIT_REACHED;
 }
 
-// ── Welcome Credit ──
+export const BILLING_CURRENCY = "usd";
+export const CREDITS_PER_USD = 100;
 
-export const WELCOME_CREDIT_TYPE = "welcome_credit";
+export const CREDIT_ENTRY_TYPE = {
+	MANUAL_ADJUSTMENT: "manual_adjustment",
+	PURCHASE_GRANT: "purchase_grant",
+	REFUND_REVERSAL: "refund_reversal",
+	USAGE_DEDUCTION: "usage_deduction",
+	WELCOME_CREDIT: "welcome_credit",
+} as const;
+
+export type CreditEntryType = (typeof CREDIT_ENTRY_TYPE)[keyof typeof CREDIT_ENTRY_TYPE];
+
+export const PURCHASE_GRANT_STATUS = {
+	FAILED: "failed",
+	GRANTED: "granted",
+	PENDING: "pending",
+	PARTIALLY_REFUNDED: "partially_refunded",
+	REFUNDED: "refunded",
+	REFUND_DEFICIT: "refund_deficit",
+} as const;
+
+export type PurchaseGrantStatus =
+	(typeof PURCHASE_GRANT_STATUS)[keyof typeof PURCHASE_GRANT_STATUS];
+
+export const BILLING_METADATA_SCHEMA_VERSION = 1;
+export const BILLING_HISTORY_LIMIT = 50;
+
+export const MIN_CAP_USD = 0.01;
+export const MIN_PURCHASE_USD = 1;
+export const MIN_PURCHASE_CENTS = MIN_PURCHASE_USD * CREDITS_PER_USD;
+
 export const WELCOME_CREDIT_USD = 10;
 export const WELCOME_CREDIT_EXPIRY_DAYS = 30;
 
-// ── Fixed Costs ──
-
 export const FIXED_COSTS = {
-	// E2B sandbox session
-	// Currently disabled, only AI model usage is billed
 	sandbox: 0,
 } as const;
-
-// ── Spending Limit ──
-
-export const MIN_CAP_USD = 0.01;
-
-// ── Stripe ──
-
-/**
- * 1 USD = 10,000 units.
- * Stripe meter price must be set to $0.0001 per unit.
- */
-export const COST_TO_UNITS = 10_000;
-export const STRIPE_MAX_EVENT_AGE_DAYS = 35;
-
-// ── Polar ──
-
-/**
- * Polar payment gateway configuration.
- * Set POLAR_ACCESS_TOKEN, POLAR_WEBHOOK_SECRET, and POLAR_PRODUCT_ID
- * environment variables to enable Polar as a payment gateway.
- * Optionally set POLAR_SERVER=sandbox for testing.
- */
-export const POLAR_ENABLED_ENV_KEY = "POLAR_ACCESS_TOKEN";
-
-// ── Subscription ──
-
-export const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"] as const;

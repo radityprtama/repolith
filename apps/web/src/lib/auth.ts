@@ -10,10 +10,6 @@ import { cache } from "react";
 import { dash, sentinel } from "@better-auth/infra";
 import { createHash } from "@better-auth/utils/hash";
 import { admin, oAuthProxy } from "better-auth/plugins";
-import { stripe } from "@better-auth/stripe";
-import { getStripeClient, isStripeEnabled } from "./billing/stripe";
-import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
-import { getPolarClient, isPolarEnabled } from "./billing/polar";
 import { grantSignupCredits } from "./billing/credit";
 import { patSignIn } from "./auth-plugins/pat-signin";
 
@@ -52,78 +48,6 @@ export const auth = betterAuth({
 		sentinel(),
 		admin(),
 		patSignIn(),
-		...(isStripeEnabled
-			? [
-					stripe({
-						stripeClient: getStripeClient(),
-						stripeWebhookSecret:
-							process.env.STRIPE_WEBHOOK_SECRET!,
-						createCustomerOnSignUp: true,
-						onCustomerCreate: async ({ user }) => {
-							await grantSignupCredits(user.id);
-						},
-						subscription: {
-							enabled: true,
-							plans: [
-								{
-									name: "base",
-									priceId: process.env
-										.STRIPE_BASE_PRICE_ID!,
-									lineItems: [
-										{
-											price: process
-												.env
-												.STRIPE_METERED_PRICE_ID!,
-										},
-									],
-								},
-							],
-						},
-					}),
-				]
-			: []),
-		...(isPolarEnabled
-			? [
-					polar({
-						client: getPolarClient(),
-						createCustomerOnSignUp: true,
-						use: [
-							checkout({
-								products: [
-									{
-										productId: process
-											.env
-											.POLAR_PRODUCT_ID!,
-										slug: "base",
-									},
-								],
-								successUrl: "/settings?tab=billing&checkout_id={CHECKOUT_ID}",
-								authenticatedUsersOnly: true,
-							}),
-							portal(),
-							usage(),
-							webhooks({
-								secret: process.env
-									.POLAR_WEBHOOK_SECRET!,
-								onOrderPaid: async (payload) => {
-									console.log(
-										"[polar] Order paid:",
-										payload,
-									);
-								},
-								onCustomerStateChanged: async (
-									payload,
-								) => {
-									console.log(
-										"[polar] Customer state changed:",
-										payload,
-									);
-								},
-							}),
-						],
-					}),
-				]
-			: []),
 		...(process.env.VERCEL
 			? [oAuthProxy({ productionURL: "https://www.repolith.my.id" })]
 			: []),
@@ -141,6 +65,15 @@ export const auth = betterAuth({
 		},
 		deleteUser: {
 			enabled: true,
+		},
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					await grantSignupCredits(user.id);
+				},
+			},
 		},
 	},
 	account: {

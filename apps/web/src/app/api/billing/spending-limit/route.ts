@@ -1,10 +1,5 @@
 import { auth } from "@/lib/auth";
-import {
-	getCurrentPeriodUsage,
-	getSpendingLimit,
-	getSpendingLimitInfo,
-	updateSpendingLimit,
-} from "@/lib/billing/spending-limit";
+import { getSpendingLimitInfo, updateSpendingLimit } from "@/lib/billing/spending-limit";
 import { getCreditBalance } from "@/lib/billing/credit";
 import { headers } from "next/headers";
 
@@ -14,32 +9,18 @@ export async function GET() {
 		return Response.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
-	const info = await getSpendingLimitInfo(session.user.id);
-	if (info) {
-		return Response.json({
-			mode: "subscription",
-			monthlyCapUsd: info.monthlyCapUsd,
-			periodUsageUsd: info.periodUsageUsd,
-			periodStart: info.periodStart.toISOString(),
-			remainingUsd: info.remainingUsd,
-		});
-	}
-
-	const monthStart = new Date();
-	monthStart.setUTCDate(1);
-	monthStart.setUTCHours(0, 0, 0, 0);
-	const [balance, monthlyCapUsd, periodUsageUsd] = await Promise.all([
+	const [balance, info] = await Promise.all([
 		getCreditBalance(session.user.id),
-		getSpendingLimit(session.user.id),
-		getCurrentPeriodUsage(session.user.id, monthStart),
+		getSpendingLimitInfo(session.user.id),
 	]);
+
 	return Response.json({
-		mode: "credit",
-		available: balance.available,
-		totalGranted: balance.totalGranted,
-		monthlyCapUsd,
-		periodUsageUsd,
-		periodStart: monthStart.toISOString(),
+		availableCredits: balance.availableCredits,
+		availableUsd: balance.available,
+		monthlyCapUsd: info.monthlyCapUsd,
+		periodStart: info.periodStart.toISOString(),
+		periodUsageUsd: info.periodUsageUsd,
+		remainingUsd: info.remainingUsd,
 	});
 }
 

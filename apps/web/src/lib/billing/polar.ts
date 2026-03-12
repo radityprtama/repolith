@@ -1,75 +1,102 @@
 import { Polar } from "@polar-sh/sdk";
-import { prisma } from "../db";
+import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks";
+import { buildPurchaseCheckoutMetadata } from "./amounts";
+import { BILLING_CURRENCY } from "./config";
 
-export const isPolarEnabled = !!process.env.POLAR_ACCESS_TOKEN;
+function getRequiredEnv(name: "POLAR_ACCESS_TOKEN" | "POLAR_PRODUCT_ID" | "POLAR_WEBHOOK_SECRET") {
+	const value = process.env[name];
+	if (!value) {
+		throw new Error(`${name} is required for Polar billing`);
+	}
 
-if (!isPolarEnabled) {
-	console.warn("[billing] POLAR_ACCESS_TOKEN is not set — Polar features are disabled.");
+	return value;
 }
 
-let _polar: Polar | null = null;
+function shouldUseSandboxServer(): boolean {
+	if (process.env.VERCEL_ENV) {
+		return process.env.VERCEL_ENV !== "production";
+	}
+
+	return process.env.NODE_ENV !== "production";
+}
+
+export const isPolarEnabled = Boolean(
+	process.env.POLAR_ACCESS_TOKEN && process.env.POLAR_PRODUCT_ID,
+);
+
+let polarClient: Polar | null = null;
+
 export function getPolarClient(): Polar {
-	if (!_polar) {
-		_polar = new Polar({
-			accessToken: process.env.POLAR_ACCESS_TOKEN!,
-			// Use 'sandbox' for development/testing, remove or set to 'production' for live
-			...(process.env.POLAR_SERVER === "sandbox" ? { server: "sandbox" } : {}),
+	if (!polarClient) {
+		polarClient = new Polar({
+			accessToken: getRequiredEnv("POLAR_ACCESS_TOKEN"),
+			...(shouldUseSandboxServer() ? { server: "sandbox" } : {}),
 		});
 	}
-	return _polar;
+
+	return polarClient;
 }
 
-/**
- * Report usage to Polar for metered billing.
- * This is a no-op if Polar is not enabled or the user has no Polar customer ID.
- */
-export async function reportUsageToPolar(
-	usageLogId: string,
-	userId: string,
-	costUsd: number,
-): Promise<void> {
-	if (!isPolarEnabled) return;
+export function getPolarProductId(): string {
+	return getRequiredEnv("POLAR_PRODUCT_ID");
+}
 
-	if (costUsd <= 0) {
-		// Mark as reported so retry job skips it.
-		await prisma.usageLog.update({
-			where: { id: usageLogId },
-			data: { polarReported: true },
-		});
-		return;
+export function getPolarWebhookSecret(): string {
+	return getRequiredEnv("POLAR_WEBHOOK_SECRET");
+}
+
+export async function createCreditCheckout(params: {
+	baseAmountCents: number;
+	customerEmail: string;
+	customerIpAddress?: string | null;
+	customerName?: string | null;
+	returnUrl?: string | null;
+	successUrl: string;
+	userId: string;
+}) {
+	const productId = getPolarProductId();
+	const metadata = buildPurchaseCheckoutMetadata({
+		baseAmountCents: params.baseAmountCents,
+		userId: params.userId,
+	});
+
+	return getPolarClient().checkouts.create({
+		allowDiscountCodes: false,
+		currency: BILLING_CURRENCY,
+		customerEmail: params.customerEmail,
+		customerIpAddress: params.customerIpAddress ?? undefined,
+		customerName: params.customerName ?? undefined,
+		externalCustomerId: params.userId,
+		metadata,
+		products: [productId],
+		prices: {
+			[productId]: [
+				{
+					amountType: "fixed",
+					priceAmount: params.baseAmountCents,
+					priceCurrency: BILLING_CURRENCY,
+				},
+			],
+		},
+		returnUrl: params.returnUrl ?? undefined,
+		successUrl: params.successUrl,
+	});
+}
+
+export function verifyPolarWebhook(body: string, headers: Headers) {
+	const webhookHeaders = {
+		"webhook-id": headers.get("webhook-id") ?? "",
+		"webhook-signature": headers.get("webhook-signature") ?? "",
+		"webhook-timestamp": headers.get("webhook-timestamp") ?? "",
+	};
+	const event = validateEvent(body, webhookHeaders, getPolarWebhookSecret());
+	const eventId = webhookHeaders["webhook-id"];
+
+	if (!eventId) {
+		throw new Error("Polar webhook is missing webhook-id");
 	}
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { polarCustomerId: true },
-	});
-	if (!user?.polarCustomerId) return;
-
-	// Polar doesn't have a direct meter event API like Stripe.
-	// Usage tracking is handled by the @polar-sh/better-auth usage() plugin
-	// which hooks into Better Auth's subscription lifecycle.
-	// We simply mark the usage log as reported for Polar.
-	await prisma.usageLog.update({
-		where: { id: usageLogId },
-		data: { polarReported: true },
-	});
+	return { event, eventId };
 }
 
-/**
- * Determine which payment gateway is active for a given user.
- * Returns 'polar' if the user has a Polar customer ID,
- * 'stripe' if the user has a Stripe customer ID,
- * or null if neither is set.
- */
-export async function getActivePaymentGateway(userId: string): Promise<"polar" | "stripe" | null> {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { polarCustomerId: true, stripeCustomerId: true },
-	});
-	if (!user) return null;
-
-	// Polar takes priority if both are set (user preference)
-	if (user.polarCustomerId && isPolarEnabled) return "polar";
-	if (user.stripeCustomerId) return "stripe";
-	return null;
-}
+export { WebhookVerificationError };
