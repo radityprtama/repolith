@@ -29,6 +29,7 @@ const KNOWN_ROUTES = [
 
 const nextConfig: NextConfig = {
 	devIndicators: false,
+	output: "standalone",
 	reactCompiler: true,
 	serverExternalPackages: ["@prisma/client"],
 	experimental: {
